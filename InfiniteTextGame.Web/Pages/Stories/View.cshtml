@@ -23,11 +23,13 @@
     </div>
 </div>
 
-@foreach (var chapter in Model.DefaultChapterChains)
+@for (var i = 0; i < Model.DefaultChapterChains.Count; i++)
 {
-    //判断当前是否是最新一章，用于生成新章节的控制按钮
-    var isLastChapter = object.Equals(chapter, Model.DefaultChapterChains.LastOrDefault());
-    <div class="card @(isLastChapter?"card-primary":"") card-outline mt-3">
+    var chapter = Model.DefaultChapterChains[i];
+    //判断当前是否是最新一章，用于生成新章节的控制按钮，并显示不同样式
+    var isLastChapter = i == Model.DefaultChapterChains.Count - 1;
+
+    <div class="card @(isLastChapter?"card-primary":"") card-outline mt-3" @(isLastChapter ? "id=lastChapter" : "")>
         <div class="card-header">
             <h5 class="card-title">@chapter.Title</h5>
             <span class="float-right small text-muted">@StringHelper.UTCDateTimeToLocaleString(chapter.CreateTime)</span>
@@ -120,7 +122,10 @@
 
             enableBackToTopButton();
 
-            window.scrollTo(0, document.body.scrollHeight);
+            setTimeout(function () {
+                var scrollOffset = $("#lastChapter").offset().top - 10;
+                $("html, body").scrollTop(scrollOffset);
+            }, 50);
         });
     </script>
 }

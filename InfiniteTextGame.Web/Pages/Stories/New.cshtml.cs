@@ -51,13 +51,15 @@ namespace InfiniteTextGame.Web.Pages.Stories
 
             if (selectStyle == null) return BadRequest($"no writing style id {SelectStyleId}");
 
+            _logger.LogInformation($"try generate new story in style {selectStyle.Name} ({SelectModel})");
+
             var story = await _aiClient.GenerateStory(selectStyle, SelectModel);
             _dbContext.Stories.Add(story);
             selectStyle.UseTimes++;
             await _dbContext.SaveChangesAsync();
 
             var firstChapter = story.Chapters.FirstOrDefault();
-            _logger.LogInformation($"generate new story {story.Title} in style {selectStyle.Name} ({SelectModel}).\nfirst chapter {firstChapter.Title} with {firstChapter.Content.Length} charactors, {firstChapter.PromptTokens} + {firstChapter.CompletionTokens} = {firstChapter.TotalTokens} tokens in {firstChapter.UseTime}ms");
+            _logger.LogInformation($"generated new story {story.Title} in style {selectStyle.Name} ({SelectModel})\nfirst chapter {firstChapter.Title} with {firstChapter.Content.Length} charactors, {firstChapter.PromptTokens} + {firstChapter.CompletionTokens} = {firstChapter.TotalTokens} tokens in {firstChapter.UseTime}ms");
 
             return RedirectToPage("/Stories/View", new {story.Id});
         }
