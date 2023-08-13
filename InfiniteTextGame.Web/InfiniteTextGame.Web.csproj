@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<DockerfileTag>itg</DockerfileTag>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.10" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="7.0.10">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\InfiniteTextGame.Lib\InfiniteTextGame.Lib.csproj" />
+		<ProjectReference Include="..\InfiniteTextGame.Models\InfiniteTextGame.Models.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Db\" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="wwwroot\lib\jquery-ui\jquery-ui.js" />
+	  <None Include="wwwroot\lib\jquery-ui\jquery-ui.min.js" />
+	  <None Include="wwwroot\lib\jquery\jquery.js" />
+	  <None Include="wwwroot\lib\jquery\jquery.min.js" />
+	  <None Include="wwwroot\lib\jquery\jquery.min.map" />
+	  <None Include="wwwroot\lib\jquery\jquery.slim.js" />
+	  <None Include="wwwroot\lib\jquery\jquery.slim.min.js" />
+	  <None Include="wwwroot\lib\jquery\jquery.slim.min.map" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Db\itg.db">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
+</Project>

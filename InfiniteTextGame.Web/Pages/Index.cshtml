@@ -1,0 +1,70 @@
+﻿@page
+@using InfiniteTextGame.Lib
+@model IndexModel
+@{
+    ViewData["Title"] = "首页";
+}
+
+<div class="row">
+    <div class="col-sm-6">
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h5 class="card-title">最近故事</h5>
+            </div>
+            <div class="card-body p-2">
+                <ul class="list-group list-group-flush">
+                    @foreach (var story in Model.RecentStories)
+                    {
+                        <li class="list-group-item clearfix">
+                            <div class="float-left">
+                                <div class="fw-bold">
+                                    <a asp-page="/Stories/View" asp-route-Id="@story.Id">@story.Title</a>
+                                </div>
+                                <span class="text-muted small">
+                                    <i class="fa-regular fa-clock"></i> @StringHelper.UTCDateTimeToLocaleString(story.UpdateTime)
+                                </span>
+                            </div>
+                            <span class="float-right badge bg-secondary rounded-pill">@story.Chapters.Count 章</span>
+                        </li>
+                    }
+                </ul>
+                <div class="clearfix p-2">
+                    <a asp-page="/Stories/Index" class="float-right">查看全部</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card card-info card-outline">
+            <div class="card-header">
+                <h5 class="card-title">写作风格</h5>
+            </div>
+            <div class="card-body p-2">
+                <ul class="list-group list-group-flush">
+                    @foreach (var style in Model.RecentStyles)
+                    {
+                        <li class="list-group-item">
+                            <div class="clearfix">
+                                <span class="fw-bold float-left">
+                                    <a asp-page="/Styles/Edit" asp-route-Id="@style.Id">@style.Name</a>
+                                </span>
+                                <span class="text-muted small float-right">
+                                    已写作 @style.UseTimes 次
+                                </span>
+                            </div>
+                            <div class="text-truncate">
+                                @style.KeyWords
+                            </div>
+                            <span class="text-muted small">
+                                <i class="fa-regular fa-clock"></i> @StringHelper.UTCDateTimeToLocaleString(style.UpdateTime)
+                            </span>
+                        </li>
+                    }
+                </ul>
+                <div class="clearfix p-2">
+                    <a asp-page="/Styles/Index" class="float-right">查看全部</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

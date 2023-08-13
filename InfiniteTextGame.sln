@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33815.320
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfiniteTextGame.Web", "InfiniteTextGame.Web\InfiniteTextGame.Web.csproj", "{B238302E-F92B-4B36-9FDF-6C81CEEDD882}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfiniteTextGame.Lib", "InfiniteTextGame.Lib\InfiniteTextGame.Lib.csproj", "{006A0735-59D0-4ED1-A684-21718E43B3DC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfiniteTextGame.Models", "InfiniteTextGame.Models\InfiniteTextGame.Models.csproj", "{1BBE48D9-E6E0-4478-8A41-8F27E3A54229}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B238302E-F92B-4B36-9FDF-6C81CEEDD882}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B238302E-F92B-4B36-9FDF-6C81CEEDD882}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B238302E-F92B-4B36-9FDF-6C81CEEDD882}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B238302E-F92B-4B36-9FDF-6C81CEEDD882}.Release|Any CPU.Build.0 = Release|Any CPU
+		{006A0735-59D0-4ED1-A684-21718E43B3DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{006A0735-59D0-4ED1-A684-21718E43B3DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{006A0735-59D0-4ED1-A684-21718E43B3DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{006A0735-59D0-4ED1-A684-21718E43B3DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1BBE48D9-E6E0-4478-8A41-8F27E3A54229}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BBE48D9-E6E0-4478-8A41-8F27E3A54229}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BBE48D9-E6E0-4478-8A41-8F27E3A54229}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BBE48D9-E6E0-4478-8A41-8F27E3A54229}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7918815B-8B1B-470B-92FF-9A393C1E8D95}
+	EndGlobalSection
+EndGlobal

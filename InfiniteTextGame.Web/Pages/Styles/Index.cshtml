@@ -1,0 +1,32 @@
+﻿@page
+@using InfiniteTextGame.Lib
+@model IndexModel
+@{
+    ViewData["Title"] = "写作风格";
+}
+
+<div class="clearfix mb-3">
+    <a class="btn btn-outline-primary float-end" href="/Styles/Edit">新建写作风格</a>
+</div>
+
+<ol class="list-group list-group-numbered">
+    @foreach (var style in Model.Styles)
+    {
+        <li class="list-group-item">
+            <div class="clearfix">
+                <span class="fw-bold float-left">
+                    <a asp-page="/Styles/Edit" asp-route-Id="@style.Id">@style.Name</a>
+                </span>
+                <span class="text-muted small float-right">
+                    已写作 @style.UseTimes 次
+                </span>
+            </div>
+            <div>
+                @style.KeyWords
+            </div>
+            <span class="text-muted small">
+                <i class="fa-regular fa-clock"></i> @StringHelper.UTCDateTimeToLocaleString(style.UpdateTime)
+            </span>
+        </li>
+    }
+</ol>

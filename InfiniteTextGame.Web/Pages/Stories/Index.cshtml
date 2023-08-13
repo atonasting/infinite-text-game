@@ -1,0 +1,28 @@
+﻿@page
+@using InfiniteTextGame.Lib
+@model IndexModel
+@{
+    ViewData["Title"] = "我写过的故事";
+}
+
+<div class="clearfix mb-3">
+    <a class="btn btn-outline-primary float-right" href="New">新的故事</a>
+</div>
+
+<ol class="list-group list-group-numbered">
+    @foreach (var story in Model.Stories)
+    {
+        <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">
+                    <a asp-page="/Stories/View" asp-route-Id="@story.Id">@story.Title</a>
+                </div>
+                <span class="text-muted small">
+                    <i class="fa-regular fa-clock"></i> @StringHelper.UTCDateTimeToLocaleString(story.UpdateTime)
+                </span>
+
+            </div>
+            <span class="badge bg-secondary rounded-pill">@story.Chapters.Count 章</span>
+        </li>
+    }
+</ol>

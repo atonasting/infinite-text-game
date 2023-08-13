@@ -1,0 +1,111 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>@ViewData["Title"] - Infinite Text Game</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="~/apple-touch-icon.png">
+    <link rel="shortcut icon" type="image/png" sizes="32x32" href="~/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/favicon-16x16.png">
+    <link rel="manifest" href="~/site.webmanifest">
+    <link rel="stylesheet" href="~/lib/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="~/lib/icheck-bootstrap/icheck-bootstrap.min.css">
+    <link rel="stylesheet" href="~/lib/adminlte3.2.0/css/adminlte.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @RenderSection("CSS", required: false)
+</head>
+
+<body class="hold-transition layout-top-nav">
+    <div class="wrapper">
+
+        <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand-md navbar-dark">
+            <div class="container">
+                <a href="/Index" class="navbar-brand">
+                    <img src="~/images/logo-100.png" alt="Logo" class="brand-image img-circle" style="background: white;">
+                    <span class="brand-text font-weight-light">Infinite Text Game</span>
+                </a>
+
+                <button class="navbar-toggler order-1" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse order-3" id="navbarCollapse">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-page="/Stories/New">新的故事</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-page="/Stories/Index">旧的回忆</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-page="/Styles/Index">写作风格</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        <!-- /.navbar -->
+
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+                <div class="container">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0"> @ViewData["Title"] </h1>
+                        </div>
+                        <div class="col-sm-6">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <div class="content">
+                <div class="container">
+                    @RenderBody()
+                </div>
+            </div>
+        </div>
+
+        <!-- Main footer -->
+        <footer class="main-footer clearfix">
+            <div class="float-left d-inline">
+                <strong>Infinite Text Game</strong> Free version.
+            </div>
+            <div class="float-right d-inline">
+                <a href="https://github.com/atonasting/infinite-text-game" class="text-dark">
+                    <i class="fa-brands fa-github"></i>
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Comfirm Box -->
+    <div class="modal" id="confirm-box" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <p id="confirm-box-content"></p>
+                </div>
+                <div class="modal-footer">
+                    <button id="confirm-box-okbutton" type="button" class="btn btn-primary mr-auto">确定</button>
+                    <button id="confirm-box-cancelbutton" type="button" class="btn btn-secondary">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/jquery.min.js"></script>
+    <script src="~/lib/bootstrap-4.6.2/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/adminlte3.2.0/js/adminlte.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <partial name="_ValidationScriptsPartial" />
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

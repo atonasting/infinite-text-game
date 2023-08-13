@@ -1,0 +1,126 @@
+﻿@page "{Id}"
+@using InfiniteTextGame.Lib
+@model ViewModel
+@{
+    ViewData["Title"] = Model.Story.Title;
+}
+
+<div class="card card-info card-outline">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-sm-2 mb-2"><strong>AI模型</strong></div>
+            <div class="col-sm-10 clearfix">
+                <span class="badge badge-secondary rounded-pill">@Model.Story.Model</span>
+                <span class="float-right">
+                    <form asp-page-handler="RemoveStory" id="formRemoveStory">
+                        <button class="btn btn-danger btn-xs">删除故事</button>
+                    </form>
+                </span>
+            </div>
+            <div class="col-sm-2"><strong>写作风格</strong></div>
+            <div class="col-sm-10 pre-line text-muted small">@Model.Story.StylePrompt</div>
+        </div>
+    </div>
+</div>
+
+@foreach (var chapter in Model.DefaultChapterChains)
+{
+    //判断当前是否是最新一章，用于生成新章节的控制按钮
+    var isLastChapter = object.Equals(chapter, Model.DefaultChapterChains.LastOrDefault());
+    <div class="card @(isLastChapter?"card-primary":"") card-outline mt-3">
+        <div class="card-header">
+            <h5 class="card-title">@chapter.Title</h5>
+            <span class="float-right small text-muted">@StringHelper.UTCDateTimeToLocaleString(chapter.CreateTime)</span>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(chapter.PreviousSummary))
+            {
+                <p>
+                    <a class="text-dark" data-toggle="collapse" href="#previousSummary-@(chapter.Id)">
+                        前情提要 <i class="fa-solid fa-angle-down"></i>
+                    </a>
+                </p>
+                <div class="collapse text-muted text-sm" id="previousSummary-@(chapter.Id)">
+                    @chapter.PreviousSummary
+                </div>
+                <hr />
+            }
+            <p class="card-text pre-line">@chapter.Content</p>
+            @if (isLastChapter)
+            {
+                <form asp-page-handler="GenerateNextChapter"></form>
+                @foreach (var option in chapter.Options)
+                {
+                    <p class="card-text">
+                        <button class="btn btn-outline-primary btn-option" order="@option.Order">@option.Name</button>
+                        <span class="text-secondary">@option.Description</span>
+                    </p>
+                }
+            }
+            else
+            {
+                @foreach (var option in chapter.Options)
+                {
+                    <p class="card-text">
+                        @if (chapter.DefaultNextChapter != null &&
+                       chapter.DefaultNextChapter.PreviousOptionOrder == option.Order)
+                        {//突出显示上一章被选中的分支
+                            <button class="btn btn-secondary">@option.Name</button>
+                            <span class="text-dark">@option.Description</span>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-secondary">@option.Name</button>
+                            <span class="text-muted">@option.Description</span>
+                        }
+                    </p>
+                }
+            }
+        </div>
+        <div class="card-footer small text-muted">
+            <span>@(chapter.PromptTokens) + @(chapter.CompletionTokens) = @(chapter.TotalTokens) tokens, generated in @(chapter.UseTime) ms</span>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script type="text/javascript">
+        $(function () {
+            $(".btn-option").on("click", function (e) {
+                var that = this;
+                $(".btn-option").prop("disabled", true);
+                buttonAddLoading(this);
+                $.ajax({
+                    type: "POST",
+                    url: "@(Model.Story.Id)?handler=GenerateNextChapter",
+                    data: {
+                        Order: $(this).attr("order")
+                    },
+                    headers: {
+                        "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        location.reload();
+                    },
+                    error: function (error) {
+                        $(".btn-option").prop("disabled", false);
+                        buttonRemoveLoading(that);
+                        console.error("Error occurred:", JSON.stringify(error));
+                    }
+                });
+            });
+
+            $("#formRemoveStory").on("submit", function (e) {
+                e.preventDefault();
+                var thisForm = this;
+                showConfirmBox("确定要删除故事【@Html.Raw(Model.Story.Title)】吗？", function () {
+                    thisForm.submit();
+                });
+            });
+
+            enableBackToTopButton();
+
+            window.scrollTo(0, document.body.scrollHeight);
+        });
+    </script>
+}
