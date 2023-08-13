@@ -16,6 +16,7 @@ using System.Text.Json;
 using InfiniteTextGame.Models;
 using System.Diagnostics;
 using static System.Net.Mime.MediaTypeNames;
+using InfiniteTextGame.Lib.Migrations;
 
 namespace InfiniteTextGame.Lib
 {
@@ -42,7 +43,8 @@ namespace InfiniteTextGame.Lib
     public class AIClient : IAIClient
     {
         private OpenAIService _sdk;
-        private readonly int _chapterLength = 400;//默认每段长度（不准确，暂定）
+        private readonly int _chapterLength = 1000;//默认每段长度（不准确，暂定）
+        private readonly int _previousSummaryLength = 200;//默认前情提要长度（不准确，暂定）
 
         public AIClient(string ApiKey, string proxy = "")
         {
@@ -125,19 +127,19 @@ namespace InfiniteTextGame.Lib
                 ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握故事迄今为止的发展、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，总结本章节之前的所有前情提要，以及下一个章节的提示"),
                 ChatMessage.FromSystem($"你的文字风格有如下特征：\n{Style.KeyWords}"),
                 ChatMessage.FromUser($"首先你来编写故事的第一个章节，需要交待故事的背景和主要人物，文字描写要细致。建议长度为{_chapterLength}个汉字"),
-                ChatMessage.FromUser($"编写完第一个章节后。如果你认为后续剧情可以直接继续发展下去，就不必提供分支选项；如果你认为可以为读者提供分支选择，就为“Options”参数设计四个不同剧情走向的分支选项，剧情会随着选择分支的不同而走向不同的方向。\n现在你可以开始编写了")
+                ChatMessage.FromUser($"编写完第一个章节后。如果你认为后续剧情可以直接继续发展下去，就不必提供分支选项；如果你认为可以为读者提供分支选择，就设计四个不同剧情走向的分支选项，剧情会根据分支走向不同的方向。\n现在你可以开始编写了")
             };
 
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "章节内容及后续分支选项")
-                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"故事标题，长度不超过10个汉字"))
-                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过16个汉字"))
+                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"故事标题，长度不超过20个汉字"))
+                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过20个汉字"))
                 .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个汉字"))
                 .AddParameter("Options", PropertyDefinition.DefineArray(
                     PropertyDefinition.DefineObject(
                         new Dictionary<string, PropertyDefinition>()
                         {
                             { "Order", PropertyDefinition.DefineInteger("选项序号，按顺序分别为1、2、3、4") },
-                            { "Name", PropertyDefinition.DefineString("选项名称，长度不超过8个汉字") },
+                            { "Name", PropertyDefinition.DefineString("选项名称，长度不超过10个汉字") },
                             { "Description", PropertyDefinition.DefineString("对选项的解释，长度不超过30个汉字") }
                         },
                         new List<string> { "Name", "Description" },
@@ -174,8 +176,10 @@ namespace InfiniteTextGame.Lib
             StoryChapter firstChapter;
             try
             {
-                firstChapter = JsonSerializer.Deserialize<StoryChapter>(
-                    completionResult.Choices.First().Message.FunctionCall.Arguments);
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
+                    .Replace((char)0x0D, ' ')
+                    .Replace((char)0x0A, '\n');
+                firstChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult);
             }
             catch (Exception ex)
             {
@@ -253,7 +257,7 @@ namespace InfiniteTextGame.Lib
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "生成下一章节内容，包括后续分支选项")
                 .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过16个汉字"))
                 .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，长度不少于{_chapterLength}个汉字。"))
-                .AddParameter("PreviousSummary", PropertyDefinition.DefineString("总结从故事开始到本章节之前所有的剧情梗概"))
+                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"从前情提要和上一章节的内容总结出本章节的前情提要，长度不少于{_previousSummaryLength}个汉字。"))
                 .AddParameter("Options", PropertyDefinition.DefineArray(
                     PropertyDefinition.DefineObject(
                         new Dictionary<string, PropertyDefinition>()
@@ -295,8 +299,10 @@ namespace InfiniteTextGame.Lib
             StoryChapter chapter;
             try
             {
-                chapter = JsonSerializer.Deserialize<StoryChapter>(
-                    completionResult.Choices.First().Message.FunctionCall.Arguments);
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
+                    .Replace((char)0x0D, ' ')
+                    .Replace((char)0x0A, '\n');
+                chapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult);
             }
             catch (Exception ex)
             {
