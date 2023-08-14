@@ -1,6 +1,8 @@
 using InfiniteTextGame.Lib;
 using InfiniteTextGame.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Text.Json;
 
 namespace InfiniteTextGame.Web
@@ -12,7 +14,7 @@ namespace InfiniteTextGame.Web
             var builder = WebApplication.CreateBuilder(args);
 
             // 配置服务
-            builder.Logging.AddConsole(options => options.TimestampFormat = "[yyyy-MM-dd hh:mm:ss] ");
+            builder.Logging.AddConsole(options => options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss] ");
 
             builder.Services.AddSqlite<ITGDbContext>(builder.Configuration.GetConnectionString("SQLiteDb"));
 
@@ -28,6 +30,13 @@ namespace InfiniteTextGame.Web
 
             // 配置并启动服务管线
             var app = builder.Build();
+
+            //启动时迁移数据库（不建议正式使用）
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<ITGDbContext>();
+                dbContext.Database.Migrate();
+            }
 
             if (!app.Environment.IsDevelopment())
             {
