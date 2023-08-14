@@ -66,17 +66,14 @@ namespace InfiniteTextGame.Web.Pages.Styles
             }
             else
             {
-                style = new WritingStyle()
-                {
-                    CreateTime = DateTime.UtcNow,
-                };
+                style = new WritingStyle() { CreateTime = DateTime.UtcNow };
+                _dbContext.WritingStyles.Add(style);
             }
             style.Source = Source;
             style.Name = Name;
             style.KeyWords = KeyWords;
             style.UpdateTime = DateTime.UtcNow;
 
-            _dbContext.WritingStyles.Add(style);
             await _dbContext.SaveChangesAsync();
             _logger.LogInformation($"save writing style {style.Name}, keywords:\n{style.KeyWords}");
 
