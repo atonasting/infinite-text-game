@@ -1,4 +1,27 @@
-﻿//禁用按钮并追加loading图标
+﻿$(function () {
+    //toastr提示默认配置
+    if (toastr) {
+        toastr.options = {
+            "closeButton": false,
+            "debug": false,
+            "newestOnTop": false,
+            "progressBar": false,
+            "positionClass": "toast-bottom-right",
+            "preventDuplicates": true,
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        }
+    }
+});
+
+//禁用按钮并追加loading图标
 function buttonAddLoading(button) {
     $(button).prop("disabled", true);
     $(button).prepend('<span class="spinner-border spinner-border-sm"></span> ');

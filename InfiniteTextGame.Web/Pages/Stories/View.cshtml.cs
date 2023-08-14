@@ -73,12 +73,18 @@ namespace InfiniteTextGame.Web.Pages.Stories
                 return BadRequest($"order {Order} not exist");
             }
 
-            _logger.LogInformation($"try generate new chapter of story {Story.Title}");
+            try
+            {
+                _logger.LogInformation($"try generate new chapter of story {Story.Title}");
+                var nextChapter = await _aiClient.GenerateNextChapter(lastChapter, Order);
+                await _dbContext.SaveChangesAsync();
+                _logger.LogInformation($"generated new chapter {nextChapter.Title} of story {Story.Title} with {nextChapter.Content.Length} charactors, {nextChapter.PromptTokens} + {nextChapter.CompletionTokens} = {nextChapter.TotalTokens} tokens in {nextChapter.UseTime}ms");
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("generate new chapter error", ex);
+            }
 
-            var nextChapter = await _aiClient.GenerateNextChapter(lastChapter, Order);
-            await _dbContext.SaveChangesAsync();
-
-            _logger.LogInformation($"generated new chapter {nextChapter.Title} of story {Story.Title} with {nextChapter.Content.Length} charactors, {nextChapter.PromptTokens} + {nextChapter.CompletionTokens} = {nextChapter.TotalTokens} tokens in {nextChapter.UseTime}ms");
             return StatusCode(200);
         }
 

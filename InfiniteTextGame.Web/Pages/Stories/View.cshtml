@@ -85,7 +85,12 @@
     </div>
 }
 
+@section CSS {
+    <link rel="stylesheet" href="~/lib/toastr/toastr.min.css">
+}
+
 @section Scripts {
+    <script src="~/lib/toastr/toastr.min.js"></script>
     <script type="text/javascript">
         $(function () {
             $(".btn-option").on("click", function (e) {
@@ -100,16 +105,19 @@
                     },
                     headers: {
                         "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
-                    },
-                    success: function (response) {
+                    }
+                })
+                    .done(function (data) {
                         location.reload();
-                    },
-                    error: function (error) {
+                    })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
                         $(".btn-option").prop("disabled", false);
                         buttonRemoveLoading(that);
-                        console.error("Error occurred:", JSON.stringify(error));
-                    }
-                });
+                        toastr["error"]("生成失败，请重试");
+                        console.error("generate next chapter error:", jqXHR.status, jqXHR.statusText);
+                    })
+                    .always(function () {
+                    });
             });
 
             $("#formRemoveStory").on("submit", function (e) {

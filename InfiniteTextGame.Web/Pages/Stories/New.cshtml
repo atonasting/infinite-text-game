@@ -9,41 +9,48 @@
         <h3 class="card-title">选择写作风格</h3>
     </div>
     <div class="card-body">
-        <form id="form" method="post">
-            @foreach (var style in Model.Styles)
-            {
-                <div class="form-group">
-                    <div class="icheck-primary d-inline">
-                        <input type="radio" id="radio@(style.Id)" name="SelectStyleId" asp-for="SelectStyleId" value="@style.Id">
-                        <label for="radio@(style.Id)">
-                            @style.Name
-                        </label>
+        @if (Model.Styles.Count > 0)
+        {
+            <form id="form" method="post">
+                @foreach (var style in Model.Styles)
+                {
+                    <div class="form-group">
+                        <div class="icheck-primary d-inline">
+                            <input type="radio" id="radio@(style.Id)" name="SelectStyleId" asp-for="SelectStyleId" value="@style.Id">
+                            <label for="radio@(style.Id)">
+                                @style.Name
+                            </label>
+                        </div>
+                        <div class="mt-2 font-size-sm">@style.KeyWords</div>
                     </div>
-                    <div class="mt-2 font-size-sm">@style.KeyWords</div>
+                    <hr />
+                }
+                <div class="form-group">
+                    <label class="mr-3">使用AI模型:</label>
+                    <div class="icheck-primary d-inline mr-3">
+                        <input type="radio" asp-for="SelectModel" id="SelectModel3_5" value="GPT3.5" checked>
+                        <label for="SelectModel3_5">GPT3.5</label>
+                        <span class="text-muted">中等质量，较快</span>
+                    </div>
+                    <div class="icheck-primary d-inline">
+                        <input type="radio" asp-for="SelectModel" id="SelectModel4" value="GPT4">
+                        <label for="SelectModel4">GPT4</label>
+                        <span class="text-muted">高质量，昂贵，不太稳定</span>
+                    </div>
                 </div>
-                <hr />
-            }
-            <div class="form-group">
-                <label class="mr-3">使用AI模型:</label>
-                <div class="icheck-primary d-inline mr-3">
-                    <input type="radio" asp-for="SelectModel" id="SelectModel3_5" value="GPT3.5" checked>
-                    <label for="SelectModel3_5">GPT3.5</label>
-                    <span class="text-muted">中等质量，较快</span>
+                <div>
+                    <button id="btnSubmit" type="submit" class="btn btn-primary">开始编写</button>
                 </div>
-                <div class="icheck-primary d-inline">
-                    <input type="radio" asp-for="SelectModel" id="SelectModel4" value="GPT4">
-                    <label for="SelectModel4">GPT4</label>
-                    <span class="text-muted">高质量，昂贵，不太稳定</span>
+                <div>
+                    <span asp-validation-for="SelectModel" class="text-danger"></span>
+                    <span asp-validation-for="SelectStyleId" class="text-danger"></span>
                 </div>
-            </div>
-            <div>
-                <button id="btnSubmit" type="submit" class="btn btn-primary">开始编写</button>
-            </div>
-            <div>
-                <span asp-validation-for="SelectModel" class="text-danger"></span>
-                <span asp-validation-for="SelectStyleId" class="text-danger"></span>
-            </div>
-        </form>
+            </form>
+        }
+        else
+        {
+            <span>请先<a asp-page="/Styles/Edit" class="btn-link">创建写作风格</a>！</span>
+        }
     </div>
 </div>
 
