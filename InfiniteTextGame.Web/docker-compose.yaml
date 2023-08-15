@@ -1,0 +1,15 @@
+﻿version: '3.8'
+
+services:
+  itg:
+    image: itg:latest
+    restart: always
+    container_name: itg
+    environment:
+        - OpenAIApiKey=xxx # set api key
+        - OpenAIWebProxy=xxx # set proxy (optional) (support http and socks5)
+    ports:
+        - '9000:80'
+    volumes:
+        - "/etc/localtime:/etc/localtime:ro"
+        - "/etc/timezone:/etc/timezone:ro"
