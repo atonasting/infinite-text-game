@@ -398,3 +398,6 @@ FodyWeavers.xsd
 *.sln.iml
 
 appsettings.Development.json
+
+InfiniteTextGame.Web/Db
+!InfiniteTextGame.Web/Db/itg.db
