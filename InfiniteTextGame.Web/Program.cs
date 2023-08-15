@@ -1,7 +1,9 @@
 using InfiniteTextGame.Lib;
+using InfiniteTextGame.Lib.Migrations;
 using InfiniteTextGame.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Text.Json;
 
@@ -30,6 +32,9 @@ namespace InfiniteTextGame.Web
 
             // 配置并启动服务管线
             var app = builder.Build();
+            app.Logger.LogInformation($"use openai api key: {openAIApiKey.Substring(0, 3)}...{openAIApiKey.Substring(openAIApiKey.Length - 3)}");
+            if (!string.IsNullOrEmpty(openAIWebProxy))
+                app.Logger.LogInformation($"use proxy: {openAIWebProxy}");
 
             //启动时迁移数据库（不建议正式使用）
             using (var scope = app.Services.CreateScope())
