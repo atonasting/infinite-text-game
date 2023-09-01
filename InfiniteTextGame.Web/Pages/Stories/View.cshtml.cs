@@ -57,6 +57,7 @@ namespace InfiniteTextGame.Web.Pages.Stories
         public async Task<IActionResult> OnPostGenerateNextChapterAsync(Guid Id, int Order)
         {
             Story = await _dbContext.Stories
+                .AsSplitQuery()
                 .Include(s => s.Chapters)
                     .ThenInclude(c => c.PreviousChapter)
                 .Include(s => s.Chapters)

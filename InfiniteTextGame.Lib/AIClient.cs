@@ -26,8 +26,12 @@ namespace InfiniteTextGame.Lib
         private OpenAIService _sdk;
         private ProviderType _providerType;
         private string _modelName;//用于记录的模型名
-        private readonly int _chapterLength = 1000;//默认每段长度（暂定）
-        private readonly int _previousSummaryLength = 200;//默认前情提要长度（暂定）
+        private readonly int _chapterLength = 400;//默认每段单词数（暂定）
+        private readonly int _previousSummaryLength = 200;//默认前情提要单词数（暂定）
+        private readonly JsonSerializerOptions _defaultJsonSerializerOptions = new JsonSerializerOptions()
+        {
+            AllowTrailingCommas = true,
+        };
 
         /// <summary>
         /// OpenAI构造函数
@@ -117,7 +121,7 @@ namespace InfiniteTextGame.Lib
             try
             {
                 style = JsonSerializer.Deserialize<WritingStyle>(
-                        completionResult.Choices.First().Message.FunctionCall.Arguments);
+                        completionResult.Choices.First().Message.FunctionCall.Arguments, _defaultJsonSerializerOptions);
                 style.KeyWords = string.Join(',', style.KeyWordList);
                 return style;
             }
@@ -134,27 +138,14 @@ namespace InfiniteTextGame.Lib
         public async Task<Story> GenerateStory(WritingStyle Style)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握故事迄今为止的发展、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，总结本章节之前的所有前情提要，以及下一个章节的提示"),
-                ChatMessage.FromSystem($"你的文字风格有如下特征：\n{Style.KeyWords}"),
-                ChatMessage.FromUser($"首先你来编写故事的第一个章节，需要交待故事的背景和主要人物，文字描写要细致。建议长度为{_chapterLength}个汉字"),
-                ChatMessage.FromUser($"编写完第一个章节后。如果你认为后续剧情可以直接继续发展下去，就不必提供分支选项；如果你认为可以为读者提供分支选择，就设计四个不同剧情走向的分支选项，剧情会根据分支走向不同的方向。\n现在你可以开始编写了")
+                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事。\n整部故事的文字风格有如下特征：{Style.KeyWords}"),
+                ChatMessage.FromUser($"首先编写故事的第一个章节，需要交待故事的背景和主要人物，文字描写要细致。建议长度为{_chapterLength}个单词"),
             };
 
-            var chapterFunc = new FunctionDefinitionBuilder("chapter", "章节内容及后续分支选项")
-                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"故事标题，长度不超过20个汉字"))
-                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过20个汉字"))
-                .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个汉字"))
-                .AddParameter("Options", PropertyDefinition.DefineArray(
-                    PropertyDefinition.DefineObject(
-                        new Dictionary<string, PropertyDefinition>()
-                        {
-                            { "Order", PropertyDefinition.DefineInteger("选项序号，按顺序分别为1、2、3、4") },
-                            { "Name", PropertyDefinition.DefineString("选项名称，长度不超过10个汉字") },
-                            { "Description", PropertyDefinition.DefineString("对选项的解释，长度不超过30个汉字") }
-                        },
-                        new List<string> { "Name", "Description" },
-                        false, "剧情分支选项，一共4个", null)
-                    ))
+            var chapterFunc = new FunctionDefinitionBuilder("chapter", "章节内容")
+                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"故事标题，长度不超过4个单词"))
+                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
+                .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个单词"))
                 .Validate()
                 .Build();
 
@@ -188,7 +179,7 @@ namespace InfiniteTextGame.Lib
                 var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
                     .Replace((char)0x0D, ' ')
                     .Replace((char)0x0A, '\n');
-                firstChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult);
+                firstChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
             }
             catch (Exception ex)
             {
@@ -203,24 +194,21 @@ namespace InfiniteTextGame.Lib
                 IsPublic = true,
                 Model = _modelName,
                 StylePrompt = Style.KeyWords,
-                Chapters = new List<StoryChapter> { firstChapter }
+                Chapters = new List<StoryChapter>() { firstChapter },
             };
 
+            firstChapter.Story = story;
             firstChapter.CreateTime = DateTime.UtcNow;
             firstChapter.UseTime = useTime;
             firstChapter.PromptTokens = completionResult.Usage.PromptTokens;
             firstChapter.CompletionTokens = (int)completionResult.Usage.CompletionTokens;
-            if (firstChapter.Options == null || firstChapter.Options.Count == 0 || firstChapter.Options.Count == 1)
-            {
-                firstChapter.Options = new List<StoryChapterOption> {
-                    new StoryChapterOption()
-                    {
-                        IsContinue = true,
-                        Name = "继续",
-                        Order = 0
-                    }
-                };
-            }
+
+            //生成分支剧情选项
+            var optionsChapter = await GenerateOptions(firstChapter);//此章节对象仅用于记录分支和运行情况
+            firstChapter.UseTime += optionsChapter.UseTime;
+            firstChapter.PromptTokens += optionsChapter.PromptTokens;
+            firstChapter.CompletionTokens += optionsChapter.CompletionTokens;
+            firstChapter.Options = optionsChapter.Options;
 
             Style.UseTimes++;
 
@@ -231,53 +219,29 @@ namespace InfiniteTextGame.Lib
         /// 生成故事的下一章节
         /// </summary>
         /// <returns></returns>
-        public async Task<StoryChapter> GenerateNextChapter(StoryChapter PreviousChapter, int OptionOrder = 0)
+        public async Task<StoryChapter> GenerateNextChapter(StoryChapter previousChapter, int optionOrder = 0)
         {
-            var story = PreviousChapter.Story;
+            var story = previousChapter.Story;
 
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握故事迄今为止的发展、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，总结本章节之前的所有前情提要，以及下一个章节的提示。"),
-                ChatMessage.FromSystem($"你的文字风格有如下特征：\n{story.StylePrompt}")
+                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握之前的故事背景、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，并总结本章节之前的所有前情提要。"),
+                ChatMessage.FromSystem($"整部故事的文字风格有如下特征：\n{story.StylePrompt}")
             };
 
-            messages.Add(ChatMessage.FromUser($"接下来我会为你介绍一下之前的剧情和编写本章节的指导，你要根据这些来编写本章节内容。"));
-            if (!string.IsNullOrEmpty(PreviousChapter.PreviousSummary))
+            if (!string.IsNullOrEmpty(previousChapter.PreviousSummary))
             {
-                messages.Add(ChatMessage.FromAssistant($"好的，请告诉我整个故事的前情提要。"));
-                messages.Add(ChatMessage.FromUser(PreviousChapter.PreviousSummary));
+                messages.Add(ChatMessage.FromUser($"故事的前情提要:\n{previousChapter.PreviousSummary}"));
             }
-            messages.Add(ChatMessage.FromAssistant($"好的，请告诉我上一章节的内容。"));
-            messages.Add(ChatMessage.FromUser(PreviousChapter.Content));
-            if (OptionOrder > 0)
-            {
-                var option = PreviousChapter.Options.Single(o => o.Order == OptionOrder);
-                messages.Add(ChatMessage.FromAssistant($"好的，我知道了上一章节的内容。请告诉我对本章节剧情的要求。"));
-                messages.Add(ChatMessage.FromUser($"对本章节剧情的要求：{option.Name}，{option.Description}。\n章节建议长度为{_chapterLength}个汉字。"));
-            }
-            else
-            {
-                messages.Add(ChatMessage.FromAssistant($"好的，我知道了上一章节的内容。"));
-                messages.Add(ChatMessage.FromUser($"请继续之前的剧情来编写本章节，建议长度为{_chapterLength}个汉字。"));
-            }
-            messages.Add(ChatMessage.FromAssistant($"好的，我已经完全了解应该如何编写本章节了。还有一个问题，本章节的后续剧情应该如何进行？"));
-            messages.Add(ChatMessage.FromUser($"由你根据编写的剧情来判断。如果你认为后续剧情可以直接继续发展下去，就不必提供分支选项；如果你认为可以为读者提供分支选择，就为“Options”参数设计四个不同剧情走向的分支选项，剧情会随着选择分支的不同而走向不同的方向。\n现在你可以开始编写了。"));
+            messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{previousChapter.Content}"));
 
+            var option = previousChapter.Options.Single(o => o.Order == optionOrder);
+            messages.Add(ChatMessage.FromUser($"对本章节剧情的要求：{option.Name}，{option.Description}。\n章节建议长度为{_chapterLength}个单词。"));
+            messages.Add(ChatMessage.FromSystem($"你要通过动作、对话、描写等方式来编写故事，尽可能避免单纯地写剧情本身。"));
 
-            var chapterFunc = new FunctionDefinitionBuilder("chapter", "生成下一章节内容，包括后续分支选项")
-                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过16个汉字"))
-                .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，长度不少于{_chapterLength}个汉字。"))
-                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"从前情提要和上一章节的内容总结出本章节的前情提要，长度不少于{_previousSummaryLength}个汉字。"))
-                .AddParameter("Options", PropertyDefinition.DefineArray(
-                    PropertyDefinition.DefineObject(
-                        new Dictionary<string, PropertyDefinition>()
-                        {
-                            { "Order", PropertyDefinition.DefineInteger("选项序号，按顺序分别为1、2、3、4。") },
-                            { "Name", PropertyDefinition.DefineString("选项名称，长度不超过8个汉字。") },
-                            { "Description", PropertyDefinition.DefineString("对选项的解释，长度不超过30个汉字。") }
-                        },
-                        new List<string> { "Name", "Description" },
-                        false, "剧情分支选项，一共4个", null)
-                    ))
+            var chapterFunc = new FunctionDefinitionBuilder("chapter", "生成下一章节内容并总结前情提要")
+                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
+                .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个单词"))
+                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"从前情提要和上一章节的内容总结出本章节的前情提要，建议长度为{_previousSummaryLength}个单词"))
                 .Validate()
                 .Build();
 
@@ -311,7 +275,7 @@ namespace InfiniteTextGame.Lib
                 var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
                     .Replace((char)0x0D, ' ')
                     .Replace((char)0x0A, '\n');
-                chapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult);
+                chapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
             }
             catch (Exception ex)
             {
@@ -319,31 +283,111 @@ namespace InfiniteTextGame.Lib
             }
 
             //为当前章节、前一章节和Story赋值
+            chapter.Story = story;
             chapter.CreateTime = DateTime.UtcNow;
             chapter.UseTime = useTime;
             chapter.PromptTokens = completionResult.Usage.PromptTokens;
             chapter.CompletionTokens = (int)completionResult.Usage.CompletionTokens;
-            chapter.PreviousOptionOrder = OptionOrder;
-            if (chapter.Options == null || chapter.Options.Count == 0 || chapter.Options.Count == 1)
-            {
-                chapter.Options = new List<StoryChapterOption> {
-                        new StoryChapterOption()
-                        {
-                            Chapter = chapter,
-                            IsContinue = true,
-                            Name = "继续",
-                            Order = 0
-                        }
-                    };
-            }
+            chapter.PreviousOptionOrder = optionOrder;
 
-            PreviousChapter.NextChapters ??= new List<StoryChapter>();
-            PreviousChapter.NextChapters.Add(chapter);
-            chapter.PreviousChapter = PreviousChapter;
+            //生成分支剧情选项
+            var optionsChapter = await GenerateOptions(chapter);//此章节对象仅用于记录分支和运行情况
+            chapter.UseTime += optionsChapter.UseTime;
+            chapter.PromptTokens += optionsChapter.PromptTokens;
+            chapter.CompletionTokens += optionsChapter.CompletionTokens;
+            chapter.Options = optionsChapter.Options;
+
+            previousChapter.NextChapters ??= new List<StoryChapter>();
+            previousChapter.NextChapters.Add(chapter);
+            chapter.PreviousChapter = previousChapter;
 
             story.Chapters.Add(chapter);
             story.UpdateTime = DateTime.UtcNow;
             return chapter;
+        }
+
+        /// <summary>
+        /// 为章节生成后续选项
+        /// </summary>
+        /// <returns></returns>
+        protected async Task<StoryChapter> GenerateOptions(StoryChapter chapter)
+        {
+            var messages = new List<ChatMessage> {
+                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。你要为故事的最新章节设计后续剧情的4个分支剧情，每个剧情要具有不同风格。"),
+                ChatMessage.FromSystem($"整部故事的文字风格有如下特征：\n{chapter.Story.StylePrompt}"),
+            };
+
+            if (chapter.PreviousChapter != null)
+            {
+                if (!string.IsNullOrEmpty(chapter.PreviousChapter.PreviousSummary))
+                {
+                    messages.Add(ChatMessage.FromUser($"故事的前情提要:\n{chapter.PreviousChapter.PreviousSummary}"));
+                }
+                messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{chapter.PreviousChapter.Content}"));
+            }
+            messages.Add(ChatMessage.FromUser($"最新一章的故事内容:\n{chapter.Content}"));
+            messages.Add(ChatMessage.FromUser($"你要为后续剧情设计4个分支剧情，每个剧情要具有不同风格。"));
+
+            var optionsFunc = new FunctionDefinitionBuilder("options", "生成后续4个分支剧情")
+                .AddParameter("Options", PropertyDefinition.DefineArray(
+                    PropertyDefinition.DefineObject(
+                        new Dictionary<string, PropertyDefinition>()
+                        {
+                            { "Order", PropertyDefinition.DefineInteger("分支剧情的序号，按顺序分别为1、2、3、4") },
+                            { "Name", PropertyDefinition.DefineString("分支剧情名称，长度不超过4个单词") },
+                            { "Description", PropertyDefinition.DefineString("每条分支剧情的详细解释，长度不超过8个单词") }
+                        },
+                        new List<string> { "Order", "Name", "Description" }, false, null, null)
+                    ))
+                .Validate()
+                .Build();
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var completionResult = await _sdk.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
+            {
+                Messages = messages,
+                Functions = new List<FunctionDefinition> { optionsFunc },
+                FunctionCall = new Dictionary<string, string> { { "name", "options" } }
+            });
+            var useTime = sw.ElapsedMilliseconds;
+
+            if (!completionResult.Successful)
+            {
+                if (completionResult.Error == null)
+                {
+                    throw new ApplicationException($"Call chatgpt unknown error");
+                }
+                throw new ApplicationException($"Call chatgpt error: {completionResult.Error.Message}");
+            }
+            if (completionResult.Choices.First().Message.FunctionCall == null)
+            {
+                throw new ApplicationException($"Call chatgpt function call error");
+            }
+
+            StoryChapter resultChapter;
+            try
+            {
+                //修复一些换行符解析问题
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
+                    .Replace((char)0x0D, ' ')
+                    .Replace((char)0x0A, '\n');
+                resultChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"deserialize chatgpt return json error:\n{ex.Message}\n{completionResult.Choices.First().Message.FunctionCall.Arguments}");
+            }
+
+            if (resultChapter.Options == null || resultChapter.Options.Count != 4)
+            {
+                throw new ApplicationException($"generate options error");
+            }
+
+            resultChapter.UseTime = useTime;
+            resultChapter.PromptTokens = completionResult.Usage.PromptTokens;
+            resultChapter.CompletionTokens = (int)completionResult.Usage.CompletionTokens;
+            return resultChapter;
         }
     }
 }
