@@ -10,7 +10,7 @@ namespace InfiniteTextGame.Web.Pages.Styles
     public class EditModel : PageModel
     {
         private readonly ILogger _logger;
-        private readonly IAIClient _aiClient;
+        private readonly AIClient _aiClient;
         private readonly ITGDbContext _dbContext;
 
         [BindProperty]
@@ -25,7 +25,7 @@ namespace InfiniteTextGame.Web.Pages.Styles
         public string KeyWords { get; set; }
 
         public EditModel(ILogger<EditModel> logger,
-            IAIClient aiClient,
+            AIClient aiClient,
             ITGDbContext dbContext)
         {
             _logger = logger;

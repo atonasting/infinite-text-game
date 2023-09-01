@@ -17,43 +17,51 @@ using InfiniteTextGame.Models;
 using System.Diagnostics;
 using static System.Net.Mime.MediaTypeNames;
 using InfiniteTextGame.Lib.Migrations;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace InfiniteTextGame.Lib
 {
-    public interface IAIClient
-    {
-        /// <summary>
-        /// 基于原始文章总结关键词
-        /// </summary>
-        Task<WritingStyle> GenerateWritingStyle(string Source);
-
-        /// <summary>
-        /// 生成故事以及第一章
-        /// </summary>
-        /// <returns></returns>
-        Task<Story> GenerateStory(WritingStyle Style, string Model = "");
-
-        /// <summary>
-        /// 生成故事的下一章节
-        /// </summary>
-        /// <returns></returns>
-        Task<StoryChapter> GenerateNextChapter(StoryChapter PreviousChapter, int OptionOrder = 0);
-    }
-
-    public class AIClient : IAIClient
+    public class AIClient
     {
         private OpenAIService _sdk;
         private readonly int _chapterLength = 1000;//默认每段长度（不准确，暂定）
         private readonly int _previousSummaryLength = 200;//默认前情提要长度（不准确，暂定）
 
-        public AIClient(string ApiKey, string proxy = "")
+        /// <summary>
+        /// OpenAI构造函数
+        /// </summary>
+        /// <param name="apiKey"></param>
+        /// <param name="proxy"></param>
+        public AIClient(string apiKey, string proxy = "")
         {
             var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
 
             _sdk = new OpenAIService(new OpenAiOptions()
             {
-                ApiKey = ApiKey,
+                ProviderType = ProviderType.OpenAi,
+                ApiKey = apiKey,
                 DefaultModelId = OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_0613
+            },
+            httpClientFactory.CreateClient());
+        }
+
+        /// <summary>
+        /// Azure构造函数
+        /// </summary>
+        /// <param name="apiKey"></param>
+        /// <param name="proxy"></param>
+        public AIClient(string apiKey, string resourceName, string deploymentId)
+        {
+            var httpClientFactory = new HttpClientFactoryWithProxy();
+
+            _sdk = new OpenAIService(new OpenAiOptions()
+            {
+                ProviderType = ProviderType.Azure,
+                ApiKey = apiKey,
+                ResourceName = resourceName,
+                DeploymentId = deploymentId,
+                DefaultModelId = OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_0613,
+                ApiVersion = "2023-07-01-preview"
             },
             httpClientFactory.CreateClient());
         }
@@ -75,14 +83,12 @@ namespace InfiniteTextGame.Lib
                 .Validate()
                 .Build();
 
-            //计算token数量并选择模型
+            //计算token数量
             var fullSourceText = string.Join("\n\n", Source);
             var tokenCount = OpenAI.Tokenizer.GPT3.TokenizerGpt3.TokenCount(fullSourceText, true);
-            var model = FormatModelName("GPT4", tokenCount > 30000);
 
             var completionResult = await _sdk.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
             {
-                Model = model,
                 Messages = messages,
                 Functions = new List<FunctionDefinition> { writingStyleFunc },
                 FunctionCall = new Dictionary<string, string> { { "name", "WritingStyle" } }
@@ -119,10 +125,8 @@ namespace InfiniteTextGame.Lib
         /// 生成故事以及第一章
         /// </summary>
         /// <returns></returns>
-        public async Task<Story> GenerateStory(WritingStyle Style, string? ModelName = null)
+        public async Task<Story> GenerateStory(WritingStyle Style)
         {
-            ModelName = ModelName ?? "GPT3.5";
-
             var messages = new List<ChatMessage> {
                 ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握故事迄今为止的发展、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，总结本章节之前的所有前情提要，以及下一个章节的提示"),
                 ChatMessage.FromSystem($"你的文字风格有如下特征：\n{Style.KeyWords}"),
@@ -152,7 +156,6 @@ namespace InfiniteTextGame.Lib
             sw.Start();
             var completionResult = await _sdk.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
             {
-                Model = FormatModelName(ModelName),
                 Messages = messages,
                 Functions = new List<FunctionDefinition> { chapterFunc },
                 FunctionCall = new Dictionary<string, string> { { "name", "chapter" } }
@@ -192,7 +195,7 @@ namespace InfiniteTextGame.Lib
                 CreateTime = DateTime.UtcNow,
                 UpdateTime = DateTime.UtcNow,
                 IsPublic = true,
-                Model = ModelName,
+                Model = "GPT3.5",
                 StylePrompt = Style.KeyWords,
                 Chapters = new List<StoryChapter> { firstChapter }
             };
@@ -276,7 +279,6 @@ namespace InfiniteTextGame.Lib
             sw.Start();
             var completionResult = await _sdk.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
             {
-                Model = FormatModelName(story.Model),
                 Messages = messages,
                 Functions = new List<FunctionDefinition> { chapterFunc },
                 FunctionCall = new Dictionary<string, string> { { "name", "chapter" } }
@@ -299,6 +301,7 @@ namespace InfiniteTextGame.Lib
             StoryChapter chapter;
             try
             {
+                //修复一些换行符解析问题
                 var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
                     .Replace((char)0x0D, ' ')
                     .Replace((char)0x0A, '\n');
@@ -335,24 +338,6 @@ namespace InfiniteTextGame.Lib
             story.Chapters.Add(chapter);
             story.UpdateTime = DateTime.UtcNow;
             return chapter;
-        }
-
-        /// <summary>
-        /// 获得标准模型名称
-        /// </summary>
-        /// <returns></returns>
-        private string FormatModelName(string ModelName, bool LongContext = false)
-        {
-            return ModelName switch
-            {
-                "GPT3.5" => LongContext ?
-                            OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_16k_0613 :
-                            OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_0613,
-                "GPT4" => LongContext ?
-                            OpenAI.ObjectModels.Models.Gpt_4_32k_0613 :
-                            OpenAI.ObjectModels.Models.Gpt_4_0613,
-                _ => throw new ArgumentException($"unknown model {ModelName}")
-            };
         }
     }
 }

@@ -9,7 +9,7 @@ namespace InfiniteTextGame.Web.Pages.Stories
     public class ViewModel : PageModel
     {
         private readonly ILogger _logger;
-        private readonly IAIClient _aiClient;
+        private readonly AIClient _aiClient;
         private readonly ITGDbContext _dbContext;
 
         [ModelBinder]
@@ -22,7 +22,7 @@ namespace InfiniteTextGame.Web.Pages.Stories
         public IList<StoryChapter> DefaultChapterChains { get; set; }
 
         public ViewModel(ILogger<ViewModel> logger,
-            IAIClient aiClient,
+            AIClient aiClient,
             ITGDbContext dbContext)
         {
             _logger = logger;
