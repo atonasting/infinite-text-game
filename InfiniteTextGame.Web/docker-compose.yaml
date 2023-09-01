@@ -6,8 +6,13 @@ services:
     restart: always
     container_name: itg
     environment:
-        - OpenAIApiKey=xxx # set api key
-        - OpenAIWebProxy=xxx # set proxy (optional) (support http and socks5)
+        - WebProxy=xxx # set proxy, for example: http://ip:port or socks5://ip:port
+        - Type=OpenAI # OpenAI or Azure
+        - OpenAIApiKey=xxx # (OpenAI only) set api key 
+        - DefaultModel=xxx # (OpenAI only) set model name like 'gpt-3.5-turbo-16k-0613' or 'gpt-4-0613' etc.
+        - AzureApiKey=xxx # (Azure only) set api key 
+        - ResourceName=xxx # (Azure only) resource name for endpoint: https://{ResourceName}.openai.azure.com/
+        - DeploymentId=xxx # (Azure only) deployment id in azure openAi studio
     ports:
         - '9000:80'
     volumes:
