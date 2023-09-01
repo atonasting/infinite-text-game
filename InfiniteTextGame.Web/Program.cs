@@ -17,15 +17,16 @@ namespace InfiniteTextGame.Web
 
             // ≈‰÷√∑˛ŒÒ
             var type = builder.Configuration.GetValue<string>("Type");
+            var webProxy = builder.Configuration.GetValue<string>("WebProxy");
             switch (type.ToLower())
             {
                 case "openai":
                     var openAIApiKey = builder.Configuration.GetValue<string>("OpenAIApiKey");
-                    var openAIWebProxy = builder.Configuration.GetValue<string>("OpenAIWebProxy");
+                    var defaultModel = builder.Configuration.GetValue<string>("DefaultModel");
                     if (string.IsNullOrEmpty(openAIApiKey)) { throw new InvalidOperationException("no openai api key in configuration"); }
 
                     builder.Services.AddScoped(serverProvider =>
-                        new AIClient(openAIApiKey, openAIWebProxy)
+                        new AIClient(openAIApiKey, defaultModel, webProxy)
                     );
                     break;
                 case "azure":
@@ -37,7 +38,7 @@ namespace InfiniteTextGame.Web
                     if (string.IsNullOrEmpty(deploymentId)) { throw new InvalidOperationException("no deployment id in configuration"); }
 
                     builder.Services.AddScoped(serverProvider =>
-                        new AIClient(azureApiKey, resourceName, deploymentId)
+                        new AIClient(azureApiKey, resourceName, deploymentId, webProxy)
                     );
                     break;
                 default:

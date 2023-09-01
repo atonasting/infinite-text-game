@@ -24,15 +24,15 @@ namespace InfiniteTextGame.Lib
     public class AIClient
     {
         private OpenAIService _sdk;
-        private readonly int _chapterLength = 1000;//默认每段长度（不准确，暂定）
-        private readonly int _previousSummaryLength = 200;//默认前情提要长度（不准确，暂定）
+        private readonly int _chapterLength = 1000;//默认每段长度（暂定）
+        private readonly int _previousSummaryLength = 200;//默认前情提要长度（暂定）
 
         /// <summary>
         /// OpenAI构造函数
         /// </summary>
         /// <param name="apiKey"></param>
         /// <param name="proxy"></param>
-        public AIClient(string apiKey, string proxy = "")
+        public AIClient(string apiKey, string? defaultModel, string? proxy)
         {
             var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
 
@@ -40,7 +40,7 @@ namespace InfiniteTextGame.Lib
             {
                 ProviderType = ProviderType.OpenAi,
                 ApiKey = apiKey,
-                DefaultModelId = OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_0613
+                DefaultModelId = defaultModel ?? OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_0613
             },
             httpClientFactory.CreateClient());
         }
@@ -50,9 +50,9 @@ namespace InfiniteTextGame.Lib
         /// </summary>
         /// <param name="apiKey"></param>
         /// <param name="proxy"></param>
-        public AIClient(string apiKey, string resourceName, string deploymentId)
+        public AIClient(string apiKey, string resourceName, string deploymentId, string? proxy)
         {
-            var httpClientFactory = new HttpClientFactoryWithProxy();
+            var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
 
             _sdk = new OpenAIService(new OpenAiOptions()
             {
