@@ -15,7 +15,7 @@
         /// </summary>
         public string StylePrompt { get; set; }
         /// <summary>
-        /// 使用的模型名称
+        /// 使用的模型名称（仅创建时）
         /// </summary>
         public string Model { get; set; }
         /// <summary>

@@ -24,6 +24,8 @@ namespace InfiniteTextGame.Lib
     public class AIClient
     {
         private OpenAIService _sdk;
+        private ProviderType _providerType;
+        private string _modelName;//用于记录的模型名
         private readonly int _chapterLength = 1000;//默认每段长度（暂定）
         private readonly int _previousSummaryLength = 200;//默认前情提要长度（暂定）
 
@@ -35,14 +37,16 @@ namespace InfiniteTextGame.Lib
         public AIClient(string apiKey, string? defaultModel, string? proxy)
         {
             var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
+            _providerType = ProviderType.OpenAi;
 
             _sdk = new OpenAIService(new OpenAiOptions()
             {
-                ProviderType = ProviderType.OpenAi,
+                ProviderType = _providerType,
                 ApiKey = apiKey,
                 DefaultModelId = defaultModel ?? OpenAI.ObjectModels.Models.Gpt_3_5_Turbo_0613
             },
             httpClientFactory.CreateClient());
+            _modelName = $"OpenAI:{_sdk.GetDefaultModelId()}";
         }
 
         /// <summary>
@@ -53,10 +57,11 @@ namespace InfiniteTextGame.Lib
         public AIClient(string apiKey, string resourceName, string deploymentId, string? proxy)
         {
             var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
+            _providerType = ProviderType.Azure;
 
             _sdk = new OpenAIService(new OpenAiOptions()
             {
-                ProviderType = ProviderType.Azure,
+                ProviderType = _providerType,
                 ApiKey = apiKey,
                 ResourceName = resourceName,
                 DeploymentId = deploymentId,
@@ -64,6 +69,7 @@ namespace InfiniteTextGame.Lib
                 ApiVersion = "2023-07-01-preview"
             },
             httpClientFactory.CreateClient());
+            _modelName = $"Azure:{deploymentId}";
         }
 
         /// <summary>
@@ -195,7 +201,7 @@ namespace InfiniteTextGame.Lib
                 CreateTime = DateTime.UtcNow,
                 UpdateTime = DateTime.UtcNow,
                 IsPublic = true,
-                Model = "GPT3.5",
+                Model = _modelName,
                 StylePrompt = Style.KeyWords,
                 Chapters = new List<StoryChapter> { firstChapter }
             };
