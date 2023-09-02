@@ -138,13 +138,13 @@ namespace InfiniteTextGame.Lib
         public async Task<Story> GenerateStory(WritingStyle Style)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事。\n整部故事的文字风格有如下特征：{Style.KeyWords}"),
+                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事。\n整部故事的风格如下：{Style.KeyWords}"),
                 ChatMessage.FromUser($"首先编写故事的第一个章节，需要交待故事的背景和主要人物，文字描写要细致。建议长度为{_chapterLength}个单词"),
             };
 
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "章节内容")
                 .AddParameter("StoryTitle", PropertyDefinition.DefineString($"故事标题，长度不超过4个单词"))
-                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
+                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词。不要包含“第一章”以及类似的编号"))
                 .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个单词"))
                 .Validate()
                 .Build();
@@ -176,9 +176,7 @@ namespace InfiniteTextGame.Lib
             StoryChapter firstChapter;
             try
             {
-                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
-                    .Replace((char)0x0D, ' ')
-                    .Replace((char)0x0A, '\n');
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments;
                 firstChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
             }
             catch (Exception ex)
@@ -225,7 +223,7 @@ namespace InfiniteTextGame.Lib
 
             var messages = new List<ChatMessage> {
                 ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握之前的故事背景、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，并总结本章节之前的所有前情提要。"),
-                ChatMessage.FromSystem($"整部故事的文字风格有如下特征：\n{story.StylePrompt}")
+                ChatMessage.FromSystem($"整部故事的风格如下：\n{story.StylePrompt}")
             };
 
             if (!string.IsNullOrEmpty(previousChapter.PreviousSummary))
@@ -236,12 +234,11 @@ namespace InfiniteTextGame.Lib
 
             var option = previousChapter.Options.Single(o => o.Order == optionOrder);
             messages.Add(ChatMessage.FromUser($"对本章节剧情的要求：{option.Name}，{option.Description}。\n章节建议长度为{_chapterLength}个单词。"));
-            messages.Add(ChatMessage.FromSystem($"你要通过动作、对话、描写等方式来编写故事，尽可能避免单纯地写剧情本身。"));
 
-            var chapterFunc = new FunctionDefinitionBuilder("chapter", "生成下一章节内容并总结前情提要")
+            var chapterFunc = new FunctionDefinitionBuilder("chapter", "编写下一章节内容并总结前情提要")
                 .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
                 .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个单词"))
-                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"从前情提要和上一章节的内容总结出本章节的前情提要，建议长度为{_previousSummaryLength}个单词"))
+                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"根据之前所有内容总结出本章节的前情提要，建议长度为{_previousSummaryLength}个单词"))
                 .Validate()
                 .Build();
 
@@ -271,10 +268,7 @@ namespace InfiniteTextGame.Lib
             StoryChapter chapter;
             try
             {
-                //修复一些换行符解析问题
-                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
-                    .Replace((char)0x0D, ' ')
-                    .Replace((char)0x0A, '\n');
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments;
                 chapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
             }
             catch (Exception ex)
@@ -314,7 +308,7 @@ namespace InfiniteTextGame.Lib
         {
             var messages = new List<ChatMessage> {
                 ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。你要为故事的最新章节设计后续剧情的4个分支剧情，每个剧情要具有不同风格。"),
-                ChatMessage.FromSystem($"整部故事的文字风格有如下特征：\n{chapter.Story.StylePrompt}"),
+                ChatMessage.FromSystem($"整部故事的风格如下：\n{chapter.Story.StylePrompt}"),
             };
 
             if (chapter.PreviousChapter != null)
@@ -368,10 +362,7 @@ namespace InfiniteTextGame.Lib
             StoryChapter resultChapter;
             try
             {
-                //修复一些换行符解析问题
-                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments
-                    .Replace((char)0x0D, ' ')
-                    .Replace((char)0x0A, '\n');
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments;
                 resultChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
             }
             catch (Exception ex)

@@ -33,7 +33,7 @@ namespace InfiniteTextGame.Web.Pages.Stories
         public async Task<IActionResult> OnGetAsync()
         {
             Styles = await _dbContext.WritingStyles
-                .OrderByDescending(s => s.CreateTime)
+                .OrderByDescending(s => s.UpdateTime)
                 .ToListAsync();
             return Page();
         }
