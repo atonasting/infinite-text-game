@@ -54,7 +54,13 @@
                 @foreach (var option in chapter.Options)
                 {
                     <p class="card-text">
-                        <button class="btn btn-outline-primary btn-option" order="@option.Order">@option.Name</button>
+                        <button class="btn btn-outline-primary btn-option" order="@option.Order"
+                                title="正面程度@(option.PositivityScore), 影响规模@(option.ImpactScore), 复杂程度@(option.ComplexityScore)">
+                            <i class="@option.PositivityIcon"></i>
+                            <i class="fa-fw @option.ImpactIcon"></i>
+                            <i class="@option.ComplexityIcon"></i>
+                            <span class="ml-1">@option.Name</span>
+                        </button>
                         <span class="text-secondary">@option.Description</span>
                     </p>
                 }
@@ -63,18 +69,18 @@
             {
                 @foreach (var option in chapter.Options)
                 {
+                    //判断是否被选中分支并突出显示
+                    var isCurrentOrder = chapter.DefaultNextChapter?.PreviousOptionOrder == option.Order;
+
                     <p class="card-text">
-                        @if (chapter.DefaultNextChapter != null &&
-                       chapter.DefaultNextChapter.PreviousOptionOrder == option.Order)
-                        {//突出显示上一章被选中的分支
-                            <button class="btn btn-secondary">@option.Name</button>
-                            <span class="text-dark">@option.Description</span>
-                        }
-                        else
-                        {
-                            <button class="btn btn-outline-secondary">@option.Name</button>
-                            <span class="text-muted">@option.Description</span>
-                        }
+                        <button class="btn @(isCurrentOrder?"btn-secondary":"btn-outline-secondary")"
+                                title="正面程度@(option.PositivityScore), 影响规模@(option.ImpactScore), 复杂程度@(option.ComplexityScore)">
+                            <i class="@option.PositivityIcon"></i>
+                            <i class="fa-fw @option.ImpactIcon"></i>
+                            <i class="@option.ComplexityIcon"></i>
+                            <span class="ml-1">@option.Name</span>
+                        </button>
+                        <span class="@(isCurrentOrder?"text-dark":"text-muted")">@option.Description</span>
                     </p>
                 }
             }

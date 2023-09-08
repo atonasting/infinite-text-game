@@ -60,7 +60,6 @@ namespace InfiniteTextGame.Models
         /// <summary>
         /// 后续选项列表
         /// </summary>
-        /// <remarks>分两种情况：只有一个“继续”选项，或者有多个可分支的选项</remarks>
         public IList<StoryChapterOption> Options { get; set; }
 
         public int PromptTokens { get; set; }

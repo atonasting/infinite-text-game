@@ -21,9 +21,17 @@ namespace InfiniteTextGame.Lib
 
         public HttpClient CreateClient(string name)
         {
-            var handler = string.IsNullOrEmpty(_proxy) ?
-                 new HttpClientHandler() :
-                new HttpClientHandler() { Proxy = new WebProxy(_proxy) };
+            var handler = new SocketsHttpHandler()
+            {
+                KeepAlivePingDelay = TimeSpan.FromSeconds(10),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(5),
+                KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
+            };
+            if (!string.IsNullOrEmpty(_proxy))
+            {
+                handler.Proxy = new WebProxy(_proxy);
+            }
+
             var client = new HttpClient(handler);
             client.Timeout = TimeSpan.FromSeconds(180);
             return client;

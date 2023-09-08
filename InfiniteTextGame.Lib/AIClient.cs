@@ -18,11 +18,14 @@ using System.Diagnostics;
 using static System.Net.Mime.MediaTypeNames;
 using InfiniteTextGame.Lib.Migrations;
 using Microsoft.EntityFrameworkCore.Metadata;
+using OpenAI.ObjectModels.ResponseModels;
+using Microsoft.Extensions.Logging;
 
 namespace InfiniteTextGame.Lib
 {
     public class AIClient
     {
+        private ILogger _logger;
         private OpenAIService _sdk;
         private ProviderType _providerType;
         private string _modelName;//用于记录的模型名
@@ -38,7 +41,7 @@ namespace InfiniteTextGame.Lib
         /// </summary>
         /// <param name="apiKey"></param>
         /// <param name="proxy"></param>
-        public AIClient(string apiKey, string? defaultModel, string? proxy)
+        public AIClient(string apiKey, string? defaultModel, string? proxy, ILogger<AIClient> logger)
         {
             var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
             _providerType = ProviderType.OpenAi;
@@ -51,6 +54,7 @@ namespace InfiniteTextGame.Lib
             },
             httpClientFactory.CreateClient());
             _modelName = $"OpenAI:{_sdk.GetDefaultModelId()}";
+            _logger = logger;
         }
 
         /// <summary>
@@ -58,7 +62,7 @@ namespace InfiniteTextGame.Lib
         /// </summary>
         /// <param name="apiKey"></param>
         /// <param name="proxy"></param>
-        public AIClient(string apiKey, string resourceName, string deploymentId, string? proxy)
+        public AIClient(string apiKey, string resourceName, string deploymentId, string? proxy, ILogger<AIClient> logger)
         {
             var httpClientFactory = new HttpClientFactoryWithProxy(proxy);
             _providerType = ProviderType.Azure;
@@ -74,6 +78,7 @@ namespace InfiniteTextGame.Lib
             },
             httpClientFactory.CreateClient());
             _modelName = $"Azure:{deploymentId}";
+            _logger = logger;
         }
 
         /// <summary>
@@ -202,11 +207,18 @@ namespace InfiniteTextGame.Lib
             firstChapter.CompletionTokens = (int)completionResult.Usage.CompletionTokens;
 
             //生成分支剧情选项
-            var optionsChapter = await GenerateOptions(firstChapter);//此章节对象仅用于记录分支和运行情况
+            var optionsChapter = await GenerateOptions(firstChapter);//此章节对象仅用于记录分支和运行情况，不影响原始章节内容
             firstChapter.UseTime += optionsChapter.UseTime;
             firstChapter.PromptTokens += optionsChapter.PromptTokens;
             firstChapter.CompletionTokens += optionsChapter.CompletionTokens;
             firstChapter.Options = optionsChapter.Options;
+
+            //生成分支剧情选项分数
+            var optionsChapterWithScore = await GenerateOptionsScore(firstChapter);
+            firstChapter.UseTime += optionsChapterWithScore.UseTime;
+            firstChapter.PromptTokens += optionsChapterWithScore.PromptTokens;
+            firstChapter.CompletionTokens += optionsChapterWithScore.CompletionTokens;
+            firstChapter.Options = optionsChapterWithScore.Options;
 
             Style.UseTimes++;
 
@@ -233,7 +245,7 @@ namespace InfiniteTextGame.Lib
             messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{previousChapter.Content}"));
 
             var option = previousChapter.Options.Single(o => o.Order == optionOrder);
-            messages.Add(ChatMessage.FromUser($"对本章节剧情的要求：{option.Name}，{option.Description}。\n章节建议长度为{_chapterLength}个单词。"));
+            messages.Add(ChatMessage.FromUser($"对本章节剧情发展方向的要求：{option.Name}，{option.Description}。\n其中影响规模为{option.ImpactScore}分（规模最小为1分，最大为5分）\n正面程度为{option.PositivityScore}分（最负面为1分，最正面为5分）\n复杂程度为{option.ComplexityScore}分（最简单为1分，最复杂为5分）\n章节建议长度为{_chapterLength}个单词。"));
 
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "编写下一章节内容并总结前情提要")
                 .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
@@ -285,11 +297,18 @@ namespace InfiniteTextGame.Lib
             chapter.PreviousOptionOrder = optionOrder;
 
             //生成分支剧情选项
-            var optionsChapter = await GenerateOptions(chapter);//此章节对象仅用于记录分支和运行情况
+            var optionsChapter = await GenerateOptions(chapter);//此章节对象仅用于记录分支和运行情况，不影响原始章节内容
             chapter.UseTime += optionsChapter.UseTime;
             chapter.PromptTokens += optionsChapter.PromptTokens;
             chapter.CompletionTokens += optionsChapter.CompletionTokens;
             chapter.Options = optionsChapter.Options;
+
+            //生成分支剧情选项分数
+            var optionsChapterWithScore = await GenerateOptionsScore(chapter);
+            chapter.UseTime += optionsChapterWithScore.UseTime;
+            chapter.PromptTokens += optionsChapterWithScore.PromptTokens;
+            chapter.CompletionTokens += optionsChapterWithScore.CompletionTokens;
+            chapter.Options = optionsChapterWithScore.Options;
 
             previousChapter.NextChapters ??= new List<StoryChapter>();
             previousChapter.NextChapters.Add(chapter);
@@ -307,7 +326,7 @@ namespace InfiniteTextGame.Lib
         protected async Task<StoryChapter> GenerateOptions(StoryChapter chapter)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。你要为故事的最新章节设计后续剧情的4个分支剧情，每个剧情要具有不同风格。"),
+                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。你要为故事的最新章节设计后续剧情的4个分支剧情，每个分支剧情要具有不同风格。"),
                 ChatMessage.FromSystem($"整部故事的风格如下：\n{chapter.Story.StylePrompt}"),
             };
 
@@ -320,7 +339,7 @@ namespace InfiniteTextGame.Lib
                 messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{chapter.PreviousChapter.Content}"));
             }
             messages.Add(ChatMessage.FromUser($"最新一章的故事内容:\n{chapter.Content}"));
-            messages.Add(ChatMessage.FromUser($"你要为后续剧情设计4个分支剧情，每个剧情要具有不同风格。"));
+            messages.Add(ChatMessage.FromUser($"你要为后续剧情设计4个分支剧情。建议各个分支剧情的风格要各自不同，既有影响规模较小的，也有影响规模较大的；既有正面的，也有负面的；既有简单的，也有复杂的。"));
 
             var optionsFunc = new FunctionDefinitionBuilder("options", "生成后续4个分支剧情")
                 .AddParameter("Options", PropertyDefinition.DefineArray(
@@ -329,7 +348,7 @@ namespace InfiniteTextGame.Lib
                         {
                             { "Order", PropertyDefinition.DefineInteger("分支剧情的序号，按顺序分别为1、2、3、4") },
                             { "Name", PropertyDefinition.DefineString("分支剧情名称，长度不超过4个单词") },
-                            { "Description", PropertyDefinition.DefineString("每条分支剧情的详细解释，长度不超过8个单词") }
+                            { "Description", PropertyDefinition.DefineString("每条分支剧情的详细解释，长度不超过8个单词") },
                         },
                         new List<string> { "Order", "Name", "Description" }, false, null, null)
                     ))
@@ -374,6 +393,104 @@ namespace InfiniteTextGame.Lib
             {
                 throw new ApplicationException($"generate options error");
             }
+
+            resultChapter.UseTime = useTime;
+            resultChapter.PromptTokens = completionResult.Usage.PromptTokens;
+            resultChapter.CompletionTokens = (int)completionResult.Usage.CompletionTokens;
+            return resultChapter;
+        }
+
+        /// <summary>
+        /// 为选项进行评分
+        /// </summary>
+        /// <returns></returns>
+        protected async Task<StoryChapter> GenerateOptionsScore(StoryChapter chapter)
+        {
+            var messages = new List<ChatMessage> {
+                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。现在你的故事出现了4个分支剧情，你要从影响规模、正面程度和复杂程度三个角度来为每个分支剧情评分。"),
+                ChatMessage.FromSystem($"整部故事的风格如下：\n{chapter.Story.StylePrompt}"),
+                ChatMessage.FromUser($"最新一章的故事内容:\n{chapter.Content}"),
+        };
+            var optionsStr = string.Join('\n', chapter.Options.Select((option, index) => $"{index + 1}.{option.Name} {option.Description}"));
+
+            messages.Add(ChatMessage.FromUser($"它的4个分支剧情是：\n{optionsStr}"));
+
+            var optionsFunc = new FunctionDefinitionBuilder("optionsScore", "为每个分支剧情打分")
+                .AddParameter("Options", PropertyDefinition.DefineArray(
+                    PropertyDefinition.DefineObject(
+                        new Dictionary<string, PropertyDefinition>()
+                        {
+                            { "Order", PropertyDefinition.DefineInteger("分支剧情的序号，按顺序分别为1、2、3、4") },
+                            { "PositivityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"这段分支剧情的正面程度分数。取值范围在1~5之间，最负面为1，最正面为5") },
+                            { "ImpactScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"这段分支剧情的影响规模分数。取值范围在1~5之间，规模最小为1，最大为5") },
+                            { "ComplexityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"这段分支剧情的复杂程度分数。取值范围在1~5之间，最简单为1，最复杂为5") }
+                        },
+                        new List<string> { "Order", "ImpactScoreStr", "PositivityScoreStr", "ComplexityScoreStr" }, false, null, null)
+                    ))
+                .Validate()
+                .Build();
+
+            var sw = new Stopwatch();
+            sw.Start();
+            var completionResult = await _sdk.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
+            {
+                Messages = messages,
+                Functions = new List<FunctionDefinition> { optionsFunc },
+                FunctionCall = new Dictionary<string, string> { { "name", "optionsScore" } }
+            });
+            var useTime = sw.ElapsedMilliseconds;
+
+            if (!completionResult.Successful)
+            {
+                if (completionResult.Error == null)
+                {
+                    throw new ApplicationException($"Call chatgpt unknown error");
+                }
+                throw new ApplicationException($"Call chatgpt error: {completionResult.Error.Message}");
+            }
+            if (completionResult.Choices.First().Message.FunctionCall == null)
+            {
+                throw new ApplicationException($"Call chatgpt function call error");
+            }
+
+            StoryChapter resultChapter;
+            try
+            {
+                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments;
+                resultChapter = JsonSerializer.Deserialize<StoryChapter>(jsonResult, _defaultJsonSerializerOptions);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"deserialize chatgpt return json error:\n{ex.Message}\n{completionResult.Choices.First().Message.FunctionCall.Arguments}");
+            }
+
+            if (resultChapter.Options == null || resultChapter.Options.Count != 4)
+            {
+                throw new ApplicationException($"generate options score error");
+            }
+
+            //将分数赋给原始章节选项，逐个解析分数，有问题则抛出异常
+            foreach (var option in chapter.Options)
+            {
+                var resultOption = resultChapter.Options.SingleOrDefault(o => o.Order == option.Order);
+                if (resultOption == null)
+                {
+                    throw new ApplicationException($"generate options score error: cannot find option order {option.Order}");
+                }
+
+                if (!int.TryParse(resultOption.PositivityScoreStr, out int positivity)
+                    || !int.TryParse(resultOption.ImpactScoreStr, out int impart)
+                    || !int.TryParse(resultOption.ComplexityScoreStr, out int complexity))
+                {
+                    throw new ApplicationException($"generate options score error: \n{JsonSerializer.Serialize(resultOption)}");
+                }
+
+                option.PositivityScore = positivity;
+                option.ImpactScore = impart;
+                option.ComplexityScore = complexity;
+            }
+
+            resultChapter.Options = chapter.Options;
 
             resultChapter.UseTime = useTime;
             resultChapter.PromptTokens = completionResult.Usage.PromptTokens;
