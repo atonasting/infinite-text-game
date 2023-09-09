@@ -26,8 +26,8 @@ namespace InfiniteTextGame.Web
                     if (string.IsNullOrEmpty(openAIApiKey)) { throw new InvalidOperationException("no openai api key in configuration"); }
 
                     builder.Services.AddScoped(serverProvider =>
-                        new AIClient(openAIApiKey, defaultModel, webProxy,
-                                    serverProvider.GetRequiredService<ILogger<AIClient>>())
+                        new AIService(openAIApiKey, defaultModel, webProxy,
+                                    serverProvider.GetRequiredService<ILogger<AIService>>())
                     );
                     break;
                 case "azure":
@@ -39,8 +39,8 @@ namespace InfiniteTextGame.Web
                     if (string.IsNullOrEmpty(deploymentId)) { throw new InvalidOperationException("no deployment id in configuration"); }
 
                     builder.Services.AddScoped(serverProvider =>
-                        new AIClient(azureApiKey, resourceName, deploymentId, webProxy,
-                                    serverProvider.GetRequiredService<ILogger<AIClient>>()));
+                        new AIService(azureApiKey, resourceName, deploymentId, webProxy,
+                                    serverProvider.GetRequiredService<ILogger<AIService>>()));
                     break;
                 default:
                     throw new InvalidOperationException("type must be OpenAI or Azure");

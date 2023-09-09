@@ -11,7 +11,7 @@ namespace InfiniteTextGame.Web.Pages.Stories
     public class NewModel : PageModel
     {
         private readonly ILogger _logger;
-        private readonly AIClient _aiClient;
+        private readonly AIService _aiService;
         private readonly ITGDbContext _dbContext;
 
         [BindProperty]
@@ -22,11 +22,11 @@ namespace InfiniteTextGame.Web.Pages.Stories
         public int SelectStyleId { get; set; }
 
         public NewModel(ILogger<NewModel> logger,
-            AIClient aiClient,
+            AIService aiService,
             ITGDbContext dbContext)
         {
             _logger = logger;
-            _aiClient = aiClient;
+            _aiService = aiService;
             _dbContext = dbContext;
         }
 
@@ -49,9 +49,8 @@ namespace InfiniteTextGame.Web.Pages.Stories
 
             _logger.LogInformation($"try generate new story in style {selectStyle.Name}");
 
-            var story = await _aiClient.GenerateStory(selectStyle);
+            var story = await _aiService.GenerateStory(selectStyle);
             _dbContext.Stories.Add(story);
-            selectStyle.UseTimes++;
             await _dbContext.SaveChangesAsync();
 
             var firstChapter = story.Chapters.FirstOrDefault();

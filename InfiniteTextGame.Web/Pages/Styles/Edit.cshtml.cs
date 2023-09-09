@@ -10,7 +10,7 @@ namespace InfiniteTextGame.Web.Pages.Styles
     public class EditModel : PageModel
     {
         private readonly ILogger _logger;
-        private readonly AIClient _aiClient;
+        private readonly AIService _aiService;
         private readonly ITGDbContext _dbContext;
 
         [BindProperty]
@@ -25,11 +25,11 @@ namespace InfiniteTextGame.Web.Pages.Styles
         public string KeyWords { get; set; }
 
         public EditModel(ILogger<EditModel> logger,
-            AIClient aiClient,
+            AIService aiService,
             ITGDbContext dbContext)
         {
             _logger = logger;
-            _aiClient = aiClient;
+            _aiService = aiService;
             _dbContext = dbContext;
         }
 
@@ -88,7 +88,7 @@ namespace InfiniteTextGame.Web.Pages.Styles
         public async Task<IActionResult> OnPostGenerateKeywordsAsync(string Source)
         {
             if (Source == null) { return BadRequest("no source"); }
-            var style = await _aiClient.GenerateWritingStyle(Source);
+            var style = await _aiService.GenerateWritingStyle(Source);
             _logger.LogInformation($"generate writing style from source ({Source.Length} characters) to:\nname: {style.Name}\nkeywords:{style.KeyWords}");
 
             return new JsonResult(new Dictionary<string, string>()
