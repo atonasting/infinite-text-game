@@ -24,7 +24,8 @@
 //禁用按钮并追加loading图标
 function buttonAddLoading(button) {
     $(button).prop("disabled", true);
-    $(button).prepend('<span class="spinner-border spinner-border-sm"></span> ');
+    if ($(button).find("span.spinner-border").length == 0)
+        $(button).prepend('<span class="spinner-border spinner-border-sm"></span> ');
 }
 //恢复按钮并移除loading图标
 function buttonRemoveLoading(button) {

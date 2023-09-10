@@ -88,7 +88,8 @@ namespace InfiniteTextGame.Web.Pages.Stories
         /// <exception cref="ApplicationException"></exception>
         public async Task<IActionResult> OnPostGenerateNextChapterAsync(Guid Id, int order)
         {
-            if (Story == null)//如果被其他方法调用，Story已加载就不必再次加载
+            //如果故事对象已经在其他请求中被加载则不必再读取数据库
+            if (Story == null || _dbContext.Entry(Story).State == EntityState.Detached)
             {
                 Story = await _dbContext.Stories
                     .AsSplitQuery()

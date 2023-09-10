@@ -53,7 +53,18 @@
             <hr />
             @if (isLastChapter)
             {
-                <h5>请选择接下来的剧情发展：</h5>
+                //如果是自动编写状态则显示剩余次数
+                @if (isAutoWrite)
+                {
+                    <div class="mb-2">
+                        <span class="spinner-border spinner-border-sm"></span>
+                        <span>正在由<strong>@Model.AutoWriterSpecific.GetDescription()</strong>自动选择并编写下面<strong>@Model.RemainAutoWriteCount</strong>个章节。</span>
+                    </div>
+                }
+                else
+                {
+                    <h5>请选择接下来的剧情发展：</h5>
+                }
                 @foreach (var option in chapter.Options)
                 {
                     <p class="card-text">
@@ -68,12 +79,7 @@
                     </p>
                 }
                 <hr />
-                //如果是自动编写状态则显示剩余次数
-                @if (isAutoWrite)
-                {
-                    <span class="spinner-border spinner-border-sm"></span> <span>正在由<strong>@Model.AutoWriterSpecific.GetDescription()</strong>自动编写，还剩<strong>@Model.RemainAutoWriteCount</strong>个章节。</span>
-                }
-                else//提供自动编写选项
+                @if (!isAutoWrite)
                 {
                     <h5>或者选择不同性格的作者为你继续编写：</h5>
                     <div class="d-flex flex-wrap">
@@ -116,6 +122,10 @@
                             <span class="ml-1">@option.Name</span>
                         </button>
                         <span class="@(isCurrentOrder?"text-dark":"text-muted")">
+                            @if (isCurrentOrder && chapter.DefaultNextChapter?.Specific > 0)
+                            {
+                                <span class="mx-2">（由<strong>@(((WriterSpecific)chapter.DefaultNextChapter.Specific).GetDescription())</strong>自动选择）</span>
+                            }
                             @option.Description
                         </span>
                     </p>
@@ -124,10 +134,6 @@
         </div>
         <div class="card-footer small text-muted">
             <span>@(chapter.PromptTokens) + @(chapter.CompletionTokens) = @(chapter.TotalTokens) tokens, generated in @(chapter.UseTime) ms</span>
-            @if (chapter.Specific > 0)
-            {
-                <span>, auto choose by <strong>@(((WriterSpecific)chapter.Specific).GetDescription())</strong></span>
-            }
         </div>
     </div>
 }
@@ -185,16 +191,16 @@
                 var scrollOffset = $("#lastChapter").offset().top - 10;
                 $("html, body").scrollTop(scrollOffset);
 
-        @if (isAutoWrite)
-        {
-            <text>
+                @if (isAutoWrite)
+                {
+                    <text>
                         //自动写作模式下此时开始写作
                         let specific = @((int)Model.AutoWriterSpecific);
-                    let count = @Model.RemainAutoWriteCount;
-                    AutoWrite(specific, count);
-            </text>
-        }
-                    }, 50);
+                        let count = @Model.RemainAutoWriteCount;
+                        AutoWrite(specific, count);
+                    </text>
+                }
+            }, 50);
 
             //自动写作
             $(".btn-autowrite").on("click", function (e) {

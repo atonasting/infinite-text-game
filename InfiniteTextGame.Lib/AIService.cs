@@ -7,6 +7,7 @@ using System.Text.Json;
 using InfiniteTextGame.Models;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace InfiniteTextGame.Lib
 {
@@ -115,7 +116,7 @@ namespace InfiniteTextGame.Lib
         public async Task<Story> GenerateStory(WritingStyle Style)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事。\n整部故事的风格如下：{Style.KeyWords}"),
+                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事，你需要使用中文进行编写。\n整部故事的风格如下：{Style.KeyWords}"),
                 ChatMessage.FromUser($"首先编写故事的第一个章节，需要交待故事的背景和主要人物，文字描写要细致。建议长度为{_chapterLength}个单词"),
             };
 
@@ -175,7 +176,7 @@ namespace InfiniteTextGame.Lib
             var story = previousChapter.Story;
 
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事。编写是逐个章节进行的。\n你能掌握之前的故事背景、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，并总结本章节之前的所有前情提要。"),
+                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事，你需要使用中文进行编写。编写是逐个章节进行的。\n你能掌握之前的故事背景、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，并总结本章节之前的所有前情提要。"),
                 ChatMessage.FromSystem($"整部故事的风格如下：\n{story.StylePrompt}")
             };
 
@@ -186,7 +187,9 @@ namespace InfiniteTextGame.Lib
             messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{previousChapter.Content}"));
 
             var option = previousChapter.Options.Single(o => o.Order == optionOrder);
-            messages.Add(ChatMessage.FromUser($"对本章节剧情发展方向的要求：{option.Name}，{option.Description}。\n其中影响规模为{option.ImpactScore}分（规模最小为1分，最大为5分）\n正面程度为{option.PositivityScore}分（最负面为1分，最正面为5分）\n复杂程度为{option.ComplexityScore}分（最简单为1分，最复杂为5分）\n章节建议长度为{_chapterLength}个单词。"));
+            messages.Add(ChatMessage.FromUser($"对本章节剧情发展方向的要求：{option.Name}，{option.Description}"));
+
+            messages.Add(ChatMessage.FromSystem($"需要加入详细的对话、场景描写、人物动作描写。内容要分为多行。\n对剧情的定量描述：影响规模为{option.ImpactScore}分（规模最小为1分，最大为5分）\n正面程度为{option.PositivityScore}分（最负面为1分，最正面为5分）\n复杂程度为{option.ComplexityScore}分（最简单为1分，最复杂为5分）\n建议长度为{_chapterLength}个单词。"));
 
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "编写下一章节内容并总结前情提要")
                 .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
@@ -397,7 +400,7 @@ namespace InfiniteTextGame.Lib
 
             try
             {
-                var jsonResult = completionResult.Choices.First().Message.FunctionCall.Arguments;
+                var jsonResult = EscapeSpecialChars(completionResult.Choices.First().Message.FunctionCall.Arguments);
                 T resultContent = JsonSerializer.Deserialize<T>(jsonResult, _defaultJsonSerializerOptions);
 
                 var result = new FunctionCallResult<T>()
@@ -416,6 +419,17 @@ namespace InfiniteTextGame.Lib
             {
                 throw new AIServiceException($"deserialize chatgpt return json error:\n{ex.Message}\n{completionResult.Choices.First().Message.FunctionCall.Arguments}");
             }
+        }
+
+        /// <summary>
+        /// 处理json属性中的换行符以避免转义问题
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        protected string EscapeSpecialChars(string input)
+        {
+            string pattern = @"("":\s*"")[^""\\]*(\\.[^""\\]*)*""";
+            return Regex.Replace(input, pattern, m => Regex.Replace(m.Value, @"(\n)+", "\\n"));
         }
 
         /// <summary>
