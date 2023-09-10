@@ -46,6 +46,8 @@ namespace InfiniteTextGame.Web
                     throw new InvalidOperationException("type must be OpenAI or Azure");
             }
 
+            builder.Services.AddScoped<AutoWriteService>();
+
             builder.Services.AddSqlite<ITGDbContext>(builder.Configuration.GetConnectionString("SQLiteDb"));
 
             builder.Services.AddRazorPages();

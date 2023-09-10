@@ -2,13 +2,14 @@
 
 一个基于 AI 内容生成的文字游戏
 
-0.2 版，实现了最基础的功能
+0.3 版，实现了手动和自动编写功能
 
-# 已有功能
+# 功能列表
 
 - 从原文段落提取写作风格，或者手动填写写作风格
-- 基于写作风格编写文章
-- 根据情节走向，每个章节可以直接继续或提供分支选项，只需点击即可不断无限编写剧情
+- 基于写作风格，按章节编写文章
+- 为每个章节提供后续剧情分支选项，只需点击既可无限延续故事
+- 内置几个不同作者性格，可以自动选择分支并连续编写
 
 # 运行
 
@@ -21,11 +22,11 @@
 
 ## 容器化
 
-1. 在 InfiniteTextGame.Web 项目根目录下编译 docker 镜像文件
-1. 参考 docker-compose.yaml 的内容运行容器
+在 InfiniteTextGame.Web 项目根目录下编译 docker 镜像文件，或者直接 docker pull [atonasting/infinite-text-game](https://hub.docker.com/r/atonasting/infinite-text-game)
+
+- 参考 docker-compose.yaml 的配置运行容器
 
 # Todo
 
-- 优化 prompt，提升文字质量
+- 优化 prompt，提升文字质量和描写细致程度
 - 增加剧情选项的丰富程度
-- 自动编写引擎

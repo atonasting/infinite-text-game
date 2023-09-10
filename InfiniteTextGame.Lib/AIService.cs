@@ -250,7 +250,7 @@ namespace InfiniteTextGame.Lib
                 messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{chapter.PreviousChapter.Content}"));
             }
             messages.Add(ChatMessage.FromUser($"最新一章的故事内容:\n{chapter.Content}"));
-            messages.Add(ChatMessage.FromUser($"你要为后续剧情设计{_optionsCount}个分支剧情。建议各个分支剧情的风格要各自不同，既有影响规模较小的，也有影响规模较大的；既有正面的，也有负面的；既有简单的，也有复杂的。"));
+            messages.Add(ChatMessage.FromUser($"你要为后续剧情设计{_optionsCount}个分支剧情。建议各个分支剧情的风格要各自不同。其中至少有一个简单而与前面剧情变化不大的类型，还有一个变化很大且较为负面的类型。"));
 
             var optionsFunc = new FunctionDefinitionBuilder("options", $"生成后续{_optionsCount}个分支剧情")
                 .AddParameter("Options", PropertyDefinition.DefineArray(
@@ -364,7 +364,6 @@ namespace InfiniteTextGame.Lib
                 throw new AIServiceException($"error in generate options score of {chapter.StoryTitle} - {chapter.Title}: {ex.Message}", ex);
             }
         }
-
 
         /// <summary>
         /// 调用OpenAI执行函数计算并返回结果

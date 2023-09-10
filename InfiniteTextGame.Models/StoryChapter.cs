@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
@@ -22,6 +23,10 @@ namespace InfiniteTextGame.Models
         /// </summary>
         [NotMapped]
         public string? StoryTitle { get; set; }
+        /// <summary>
+        /// 本章节作者性格（对应枚举，0为手动）
+        /// </summary>
+        public int Specific { get; set; }
         /// <summary>
         /// 章节标题
         /// </summary>
