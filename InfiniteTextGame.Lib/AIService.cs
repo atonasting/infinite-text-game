@@ -22,7 +22,7 @@ namespace InfiniteTextGame.Lib
         private string _modelName;//用于记录的模型名
 
         private const int _optionsCount = 4;//选项数量
-        private readonly int _chapterLength = 400;//默认每段单词数（暂定）
+        private readonly int _chapterLength = 500;//默认每段单词数（暂定）
         private readonly int _previousSummaryLength = 200;//默认前情提要单词数（暂定）
 
         private readonly JsonSerializerOptions _defaultJsonSerializerOptions = new JsonSerializerOptions()
@@ -116,14 +116,15 @@ namespace InfiniteTextGame.Lib
         public async Task<Story> GenerateStory(WritingStyle Style)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事，你需要使用中文进行编写。\n整部故事的风格如下：{Style.KeyWords}"),
-                ChatMessage.FromUser($"首先编写故事的第一个章节，需要交待故事的背景和主要人物，文字描写要细致。建议长度为{_chapterLength}个单词"),
-            };
+                ChatMessage.FromSystem($"You are a writer, working on a lengthy story.\nThe overall style of the story is as follows: {Style.KeyWords}"),
+                ChatMessage.FromUser($"Start by writing the first chapter, setting the scene and introducing the main characters, with detailed descriptions. Suggested length is {_chapterLength} words."),
+                ChatMessage.FromSystem($"You must respond in Chinese."),
+        };
 
-            var chapterFunc = new FunctionDefinitionBuilder("chapter", "章节内容")
-                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"故事标题，长度不超过4个单词"))
-                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词。不要包含“第一章”以及类似的编号"))
-                .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个单词"))
+            var chapterFunc = new FunctionDefinitionBuilder("chapter", "Chapter content")
+                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"Story title, not exceeding 4 words"))
+                .AddParameter("Title", PropertyDefinition.DefineString($"This chapter's title, not exceeding 4 words. Do not include labels like \"Chapter One\"."))
+                .AddParameter("Content", PropertyDefinition.DefineString($"Content for this chapter, suggested length is {_chapterLength} words."))
                 .Validate()
                 .Build();
 
@@ -176,25 +177,26 @@ namespace InfiniteTextGame.Lib
             var story = previousChapter.Story;
 
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem("你是一位作家，你正在编写一部长篇故事，你需要使用中文进行编写。编写是逐个章节进行的。\n你能掌握之前的故事背景、上个章节的内容、以及当前章节的发展方向。\n在这些内容基础上开始编写本章节内容，并总结本章节之前的所有前情提要。"),
-                ChatMessage.FromSystem($"整部故事的风格如下：\n{story.StylePrompt}")
+                ChatMessage.FromSystem("You are a writer, writing a long story. You'll write it chapter by chapter.\nYou're aware of the story's background, the content of the previous chapter, and the direction of the current chapter.\nBased on this, start writing the content for this chapter and summarize all the prior information."),
+                ChatMessage.FromSystem($"The style of the story is:\n{story.StylePrompt}")
             };
 
             if (!string.IsNullOrEmpty(previousChapter.PreviousSummary))
             {
-                messages.Add(ChatMessage.FromUser($"故事的前情提要:\n{previousChapter.PreviousSummary}"));
+                messages.Add(ChatMessage.FromUser($"Background of the story:\n{previousChapter.PreviousSummary}"));
             }
-            messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{previousChapter.Content}"));
+            messages.Add(ChatMessage.FromUser($"Content of the previous chapter:\n{previousChapter.Content}"));
 
             var option = previousChapter.Options.Single(o => o.Order == optionOrder);
-            messages.Add(ChatMessage.FromUser($"对本章节剧情发展方向的要求：{option.Name}，{option.Description}"));
+            messages.Add(ChatMessage.FromUser($"Requirements for the plot development of this chapter: {option.Name}，{option.Description}"));
 
-            messages.Add(ChatMessage.FromSystem($"需要加入详细的对话、场景描写、人物动作描写。内容要分为多行。\n对剧情的定量描述：影响规模为{option.ImpactScore}分（规模最小为1分，最大为5分）\n正面程度为{option.PositivityScore}分（最负面为1分，最正面为5分）\n复杂程度为{option.ComplexityScore}分（最简单为1分，最复杂为5分）\n建议长度为{_chapterLength}个单词。"));
+            messages.Add(ChatMessage.FromSystem($"Include detailed dialogues, scene descriptions, and character actions. Split the content into multiple lines.\nQuantitative description of the plot: Impact scale is {option.ImpactScore} out of 5. Positivity is {option.PositivityScore} out of 5. Complexity is {option.ComplexityScore} out of 5.\nSuggested length is {_chapterLength} words."));
+            messages.Add(ChatMessage.FromSystem($"You must respond in Chinese."));
 
-            var chapterFunc = new FunctionDefinitionBuilder("chapter", "编写下一章节内容并总结前情提要")
-                .AddParameter("Title", PropertyDefinition.DefineString($"本章节标题，长度不超过4个单词"))
-                .AddParameter("Content", PropertyDefinition.DefineString($"本章节内容，建议长度为{_chapterLength}个单词"))
-                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"根据之前所有内容总结出本章节的前情提要，建议长度为{_previousSummaryLength}个单词"))
+            var chapterFunc = new FunctionDefinitionBuilder("chapter", "Write the next chapter and summarize the prior events.")
+                .AddParameter("Title", PropertyDefinition.DefineString($"Title for this chapter, not exceeding 4 words."))
+                .AddParameter("Content", PropertyDefinition.DefineString($"Content for this chapter, suggested length is {_chapterLength} words."))
+                .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"Summarize the previous content for this chapter, suggested length is {_previousSummaryLength} words."))
                 .Validate()
                 .Build();
 
@@ -240,29 +242,30 @@ namespace InfiniteTextGame.Lib
         protected async Task<StoryChapter> GenerateOptions(StoryChapter chapter)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事。你要为故事的最新章节设计后续剧情的{_optionsCount}个分支剧情，每个分支剧情要具有不同风格。"),
-                ChatMessage.FromSystem($"整部故事的风格如下：\n{chapter.Story.StylePrompt}"),
+                ChatMessage.FromSystem($"You're a writer, working on a lengthy story. Design {_optionsCount} different plot branches for the latest chapter of the story."),
+                ChatMessage.FromSystem($"The style of the story is:\n{chapter.Story.StylePrompt}"),
             };
 
             if (chapter.PreviousChapter != null)
             {
                 if (!string.IsNullOrEmpty(chapter.PreviousChapter.PreviousSummary))
                 {
-                    messages.Add(ChatMessage.FromUser($"故事的前情提要:\n{chapter.PreviousChapter.PreviousSummary}"));
+                    messages.Add(ChatMessage.FromUser($"Background of the story:\n{chapter.PreviousChapter.PreviousSummary}"));
                 }
-                messages.Add(ChatMessage.FromUser($"前一章的故事内容:\n{chapter.PreviousChapter.Content}"));
+                messages.Add(ChatMessage.FromUser($"Content of the previous chapter:\n{chapter.PreviousChapter.Content}"));
             }
-            messages.Add(ChatMessage.FromUser($"最新一章的故事内容:\n{chapter.Content}"));
-            messages.Add(ChatMessage.FromUser($"你要为后续剧情设计{_optionsCount}个分支剧情。建议各个分支剧情的风格要各自不同。其中至少有一个简单而与前面剧情变化不大的类型，还有一个变化很大且较为负面的类型。"));
+            messages.Add(ChatMessage.FromUser($"Content of this chapter:\n{chapter.Content}"));
+            messages.Add(ChatMessage.FromUser($"Design {_optionsCount} plot branches for the next chapter. Each branch should have a distinct style. At least one should be simple and similar to the prior plot, and another should have significant changes and be more negative."));
+            messages.Add(ChatMessage.FromSystem($"You must respond in Chinese."));
 
-            var optionsFunc = new FunctionDefinitionBuilder("options", $"生成后续{_optionsCount}个分支剧情")
+            var optionsFunc = new FunctionDefinitionBuilder("options", $"Generate {_optionsCount} subsequent plot branches.")
                 .AddParameter("Options", PropertyDefinition.DefineArray(
                     PropertyDefinition.DefineObject(
                         new Dictionary<string, PropertyDefinition>()
                         {
-                            { "Order", PropertyDefinition.DefineInteger($"分支剧情的序号，从1开始递增到{_optionsCount}") },
-                            { "Name", PropertyDefinition.DefineString("分支剧情名称，长度不超过4个单词") },
-                            { "Description", PropertyDefinition.DefineString("每条分支剧情的详细解释，长度不超过8个单词") },
+                            { "Order", PropertyDefinition.DefineInteger($"Plot branch sequence number, starting from 1 and increasing to {_optionsCount}.") },
+                            { "Name", PropertyDefinition.DefineString("Plot branch name, not exceeding 4 words.") },
+                            { "Description", PropertyDefinition.DefineString("Detailed description for each plot branch, not exceeding 8 words.") },
                         },
                         new List<string> { "Order", "Name", "Description" }, false, null, null)
                     ))
@@ -303,23 +306,24 @@ namespace InfiniteTextGame.Lib
             }
 
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"你是一位作家，你正在编写一部长篇故事。现在你的故事出现了{_optionsCount}个分支剧情，你要从影响规模、正面程度和复杂程度三个角度来为每个分支剧情评分。"),
-                ChatMessage.FromSystem($"整部故事的风格如下：\n{chapter.Story.StylePrompt}"),
-                ChatMessage.FromUser($"最新一章的故事内容:\n{chapter.Content}"),
+                ChatMessage.FromSystem($"You are a writer, working on a lengthy story. You now have {_optionsCount} plot branches in your story. Rate each plot branch in terms of its impact, positivity, and complexity."),
+                ChatMessage.FromSystem($"The overall style of the story is as follows:\n{chapter.Story.StylePrompt}"),
+                ChatMessage.FromUser($"Content of the latest chapter:\n{chapter.Content}"),
             };
             var optionsStr = string.Join('\n', chapter.Options.Select((option, index) => $"{index + 1}.{option.Name} {option.Description}"));
 
-            messages.Add(ChatMessage.FromUser($"它的{_optionsCount}个分支剧情是：\n{optionsStr}"));
+            messages.Add(ChatMessage.FromUser($"Its {_optionsCount} plot branches are:\n{optionsStr}"));
+            messages.Add(ChatMessage.FromSystem($"You must respond in Chinese."));
 
-            var optionsFunc = new FunctionDefinitionBuilder("optionsScore", "为每个分支剧情打分")
+            var optionsFunc = new FunctionDefinitionBuilder("optionsScore", "Rate each plot branch.")
                 .AddParameter("Options", PropertyDefinition.DefineArray(
                     PropertyDefinition.DefineObject(
                         new Dictionary<string, PropertyDefinition>()
                         {
-                            { "Order", PropertyDefinition.DefineInteger($"分支剧情的序号，从1开始递增到{_optionsCount}") },
-                            { "PositivityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"这段分支剧情的正面程度分数。取值范围在1~5之间，最负面为1，最正面为5") },
-                            { "ImpactScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"这段分支剧情的影响规模分数。取值范围在1~5之间，规模最小为1，最大为5") },
-                            { "ComplexityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"这段分支剧情的复杂程度分数。取值范围在1~5之间，最简单为1，最复杂为5") }
+                            { "Order", PropertyDefinition.DefineInteger($"Plot branch sequence number, from 1 to {_optionsCount}.") },
+                            { "PositivityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Positivity score for this plot branch. Ranging from 1 to 5, with 1 being the most negative and 5 the most positive.") },
+                            { "ImpactScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Impact score for this plot branch. Ranging from 1 to 5, with 1 being the least impactful and 5 the most impactful.") },
+                            { "ComplexityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Complexity score for this plot branch. Ranging from 1 to 5, with 1 being the simplest and 5 the most complex.") }
                         },
                         new List<string> { "Order", "ImpactScoreStr", "PositivityScoreStr", "ComplexityScoreStr" }, false, null, null)
                     ))
