@@ -21,9 +21,13 @@ namespace InfiniteTextGame.Lib
         private ProviderType _providerType;
         private string _modelName;//用于记录的模型名
 
-        private const int _optionsCount = 4;//选项数量
-        private readonly int _chapterLength = 500;//默认每段单词数（暂定）
-        private readonly int _previousSummaryLength = 200;//默认前情提要单词数（暂定）
+        private readonly string _language = "Chinese";
+        private readonly int _optionsCount = 4;//选项数量
+        private readonly int _titleMaxLength = 4;//默认标题最大单词数
+        private readonly int _optionNameMaxLength = 4;//默认选项名最大单词数
+        private readonly int _optionDescriptionMaxLength = 8;//默认选项描述最大单词数
+        private readonly int _chapterLength = 500;//默认每段单词数
+        private readonly int _previousSummaryLength = 200;//默认前情提要单词数
 
         private readonly JsonSerializerOptions _defaultJsonSerializerOptions = new JsonSerializerOptions()
         {
@@ -118,12 +122,12 @@ namespace InfiniteTextGame.Lib
             var messages = new List<ChatMessage> {
                 ChatMessage.FromSystem($"You are a writer, working on a lengthy story.\nThe overall style of the story is as follows: {Style.KeyWords}"),
                 ChatMessage.FromUser($"Start by writing the first chapter, setting the scene and introducing the main characters, with detailed descriptions. Suggested length is {_chapterLength} words."),
-                ChatMessage.FromSystem($"You must respond in Chinese."),
+                ChatMessage.FromSystem($"You must respond in {_language}."),
         };
 
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "Chapter content")
-                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"Story title, not exceeding 4 words"))
-                .AddParameter("Title", PropertyDefinition.DefineString($"This chapter's title, not exceeding 4 words. Do not include labels like \"Chapter One\"."))
+                .AddParameter("StoryTitle", PropertyDefinition.DefineString($"Story title, not exceeding {_titleMaxLength} words"))
+                .AddParameter("Title", PropertyDefinition.DefineString($"This chapter's title, not exceeding {_titleMaxLength} words. Do not include labels like \"Chapter One\"."))
                 .AddParameter("Content", PropertyDefinition.DefineString($"Content for this chapter, suggested length is {_chapterLength} words."))
                 .Validate()
                 .Build();
@@ -191,10 +195,10 @@ namespace InfiniteTextGame.Lib
             messages.Add(ChatMessage.FromUser($"Requirements for the plot development of this chapter: {option.Name}，{option.Description}"));
 
             messages.Add(ChatMessage.FromSystem($"Include detailed dialogues, scene descriptions, and character actions. Split the content into multiple lines.\nQuantitative description of the plot: Impact scale is {option.ImpactScore} out of 5. Positivity is {option.PositivityScore} out of 5. Complexity is {option.ComplexityScore} out of 5.\nSuggested length is {_chapterLength} words."));
-            messages.Add(ChatMessage.FromSystem($"You must respond in Chinese."));
+            messages.Add(ChatMessage.FromSystem($"You must respond in {_language}."));
 
             var chapterFunc = new FunctionDefinitionBuilder("chapter", "Write the next chapter and summarize the prior events.")
-                .AddParameter("Title", PropertyDefinition.DefineString($"Title for this chapter, not exceeding 4 words."))
+                .AddParameter("Title", PropertyDefinition.DefineString($"Title for this chapter, not exceeding {_titleMaxLength} words."))
                 .AddParameter("Content", PropertyDefinition.DefineString($"Content for this chapter, suggested length is {_chapterLength} words."))
                 .AddParameter("PreviousSummary", PropertyDefinition.DefineString($"Summarize the previous content for this chapter, suggested length is {_previousSummaryLength} words."))
                 .Validate()
@@ -242,7 +246,7 @@ namespace InfiniteTextGame.Lib
         protected async Task<StoryChapter> GenerateOptions(StoryChapter chapter)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"You're a writer, working on a lengthy story. Design {_optionsCount} different plot branches for the latest chapter of the story."),
+                ChatMessage.FromSystem($"You're a writer, working on a lengthy story. Design {_optionsCount} different options for next chapter of the story."),
                 ChatMessage.FromSystem($"The style of the story is:\n{chapter.Story.StylePrompt}"),
             };
 
@@ -255,17 +259,17 @@ namespace InfiniteTextGame.Lib
                 messages.Add(ChatMessage.FromUser($"Content of the previous chapter:\n{chapter.PreviousChapter.Content}"));
             }
             messages.Add(ChatMessage.FromUser($"Content of this chapter:\n{chapter.Content}"));
-            messages.Add(ChatMessage.FromUser($"Design {_optionsCount} plot branches for the next chapter. Each branch should have a distinct style. At least one should be simple and similar to the prior plot, and another should have significant changes and be more negative."));
-            messages.Add(ChatMessage.FromSystem($"You must respond in Chinese."));
+            messages.Add(ChatMessage.FromUser($"Design {_optionsCount} options for the next chapter. Each option should have a distinct style. At least one should be simple and similar to the prior plot, and another should have significant changes and be more negative."));
+            messages.Add(ChatMessage.FromSystem($"You must respond in  {_language} ."));
 
-            var optionsFunc = new FunctionDefinitionBuilder("options", $"Generate {_optionsCount} subsequent plot branches.")
+            var optionsFunc = new FunctionDefinitionBuilder("options", $"Generate {_optionsCount} options.")
                 .AddParameter("Options", PropertyDefinition.DefineArray(
                     PropertyDefinition.DefineObject(
                         new Dictionary<string, PropertyDefinition>()
                         {
-                            { "Order", PropertyDefinition.DefineInteger($"Plot branch sequence number, starting from 1 and increasing to {_optionsCount}.") },
-                            { "Name", PropertyDefinition.DefineString("Plot branch name, not exceeding 4 words.") },
-                            { "Description", PropertyDefinition.DefineString("Detailed description for each plot branch, not exceeding 8 words.") },
+                            { "Order", PropertyDefinition.DefineInteger($"Options sequence number, starting from 1 to {_optionsCount}.") },
+                            { "Name", PropertyDefinition.DefineString($"Options name, not exceeding {_optionNameMaxLength} words.") },
+                            { "Description", PropertyDefinition.DefineString($"Detailed description for each option, not exceeding {_optionDescriptionMaxLength} words.") },
                         },
                         new List<string> { "Order", "Name", "Description" }, false, null, null)
                     ))
@@ -306,24 +310,24 @@ namespace InfiniteTextGame.Lib
             }
 
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"You are a writer, working on a lengthy story. You now have {_optionsCount} plot branches in your story. Rate each plot branch in terms of its impact, positivity, and complexity."),
+                ChatMessage.FromSystem($"You are a writer, working on a lengthy story. You now have {_optionsCount} option in your story. Rate each option in terms of its impact, positivity, and complexity."),
                 ChatMessage.FromSystem($"The overall style of the story is as follows:\n{chapter.Story.StylePrompt}"),
                 ChatMessage.FromUser($"Content of the latest chapter:\n{chapter.Content}"),
             };
             var optionsStr = string.Join('\n', chapter.Options.Select((option, index) => $"{index + 1}.{option.Name} {option.Description}"));
 
-            messages.Add(ChatMessage.FromUser($"Its {_optionsCount} plot branches are:\n{optionsStr}"));
-            messages.Add(ChatMessage.FromSystem($"You must respond in Chinese."));
+            messages.Add(ChatMessage.FromUser($"All {_optionsCount} options are:\n{optionsStr}"));
+            messages.Add(ChatMessage.FromSystem($"You must respond in {_language}."));
 
-            var optionsFunc = new FunctionDefinitionBuilder("optionsScore", "Rate each plot branch.")
+            var optionsFunc = new FunctionDefinitionBuilder("optionsScore", "Rate each option.")
                 .AddParameter("Options", PropertyDefinition.DefineArray(
                     PropertyDefinition.DefineObject(
                         new Dictionary<string, PropertyDefinition>()
                         {
-                            { "Order", PropertyDefinition.DefineInteger($"Plot branch sequence number, from 1 to {_optionsCount}.") },
-                            { "PositivityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Positivity score for this plot branch. Ranging from 1 to 5, with 1 being the most negative and 5 the most positive.") },
-                            { "ImpactScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Impact score for this plot branch. Ranging from 1 to 5, with 1 being the least impactful and 5 the most impactful.") },
-                            { "ComplexityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Complexity score for this plot branch. Ranging from 1 to 5, with 1 being the simplest and 5 the most complex.") }
+                            { "Order", PropertyDefinition.DefineInteger($"Option sequence number, from 1 to {_optionsCount}.") },
+                            { "PositivityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Positivity score for this option. Ranging from 1 to 5, with 1 being the most negative and 5 the most positive.") },
+                            { "ImpactScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Impact score for this plot option. Ranging from 1 to 5, with 1 being the least impactful and 5 the most impactful.") },
+                            { "ComplexityScoreStr", PropertyDefinition.DefineEnum(new List<string>{"1","2","3","4","5"},"Complexity score for this plot option. Ranging from 1 to 5, with 1 being the simplest and 5 the most complex.") }
                         },
                         new List<string> { "Order", "ImpactScoreStr", "PositivityScoreStr", "ComplexityScoreStr" }, false, null, null)
                     ))
