@@ -29,6 +29,8 @@ namespace InfiniteTextGame.Lib
         private readonly int _chapterLength = 500;//默认每段单词数
         private readonly int _previousSummaryLength = 200;//默认前情提要单词数
 
+        private readonly int _autoRetryMaxCount = 5;//编写出错时最大重试次数
+
         private readonly JsonSerializerOptions _defaultJsonSerializerOptions = new JsonSerializerOptions()
         {
             AllowTrailingCommas = true,
@@ -117,10 +119,10 @@ namespace InfiniteTextGame.Lib
         /// 生成故事以及第一章
         /// </summary>
         /// <returns></returns>
-        public async Task<Story> GenerateStory(WritingStyle Style)
+        public async Task<Story> GenerateStory(WritingStyle style)
         {
             var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem($"You are a writer, working on a lengthy story.\nThe overall style of the story is as follows: {Style.KeyWords}"),
+                ChatMessage.FromSystem($"You are a writer, working on a lengthy story.\nThe overall style of the story is as follows: {style.KeyWords}"),
                 ChatMessage.FromUser($"Start by writing the first chapter, setting the scene and introducing the main characters, with detailed descriptions. Suggested length is {_chapterLength} words."),
                 ChatMessage.FromSystem($"You must respond in {_language}."),
         };
@@ -134,31 +136,53 @@ namespace InfiniteTextGame.Lib
 
             Story story = null;
             StoryChapter firstChapter = null;
-            try
+            //重试计数并统计累计消耗的时间与token
+            var retryCount = 0;
+            long totalTime = 0;
+            var totalPromptTokens = 0;
+            var totalCompletionTokens = 0;
+            while (true)
             {
-                var result = await ExecuteFunctionCall<StoryChapter>(messages, chapterFunc);
-                firstChapter = result.ResultContent;
-
-                story = new Story()
+                try
                 {
-                    Title = firstChapter.StoryTitle,
-                    CreateTime = DateTime.UtcNow,
-                    UpdateTime = DateTime.UtcNow,
-                    IsPublic = true,
-                    Model = _modelName,
-                    StylePrompt = Style.KeyWords,
-                    Chapters = new List<StoryChapter>() { firstChapter },
-                };
+                    var result = await ExecuteFunctionCall<StoryChapter>(messages, chapterFunc);
+                    totalTime += result.UseTime;
+                    totalPromptTokens += result.PromptTokens;
+                    totalCompletionTokens += result.CompletionTokens;
+                    if (!result.Success)
+                        throw new AIServiceException(result.Error);
 
-                firstChapter.Story = story;
-                firstChapter.CreateTime = DateTime.UtcNow;
-                firstChapter.UseTime = result.UseTime;
-                firstChapter.PromptTokens = result.PromptTokens;
-                firstChapter.CompletionTokens = result.CompletionTokens;
-            }
-            catch (AIServiceException ex)
-            {
-                throw new AIServiceException($"error in generate new story of {_modelName}: {ex.Message}", ex);
+                    firstChapter = result.ResultContent;
+
+                    if (!CheckChatper(firstChapter, true))
+                        throw new AIServiceException($"chapter content invalid:\n{result.Source}");
+
+                    story = new Story()
+                    {
+                        Title = firstChapter.StoryTitle,
+                        CreateTime = DateTime.UtcNow,
+                        UpdateTime = DateTime.UtcNow,
+                        IsPublic = true,
+                        Model = _modelName,
+                        StylePrompt = style.KeyWords,
+                        Chapters = new List<StoryChapter>() { firstChapter },
+                    };
+
+                    firstChapter.Story = story;
+                    firstChapter.CreateTime = DateTime.UtcNow;
+                    firstChapter.UseTime = totalTime;
+                    firstChapter.PromptTokens = totalPromptTokens;
+                    firstChapter.CompletionTokens = totalCompletionTokens;
+                    break;
+                }
+                catch (AIServiceException ex)
+                {
+                    retryCount++;
+                    if (retryCount > _autoRetryMaxCount)
+                        throw new AIServiceException($"error in generate new story of {style.Name}:\n {ex.Message}", ex);
+
+                    _logger.LogWarning($"error in generate new story of {style.Name}, will retry {retryCount}:\n {ex.Message}");
+                }
             }
 
             //生成分支剧情选项
@@ -167,7 +191,7 @@ namespace InfiniteTextGame.Lib
             //生成分支剧情选项分数
             _ = await GenerateOptionsScore(firstChapter);
 
-            Style.UseTimes++;
+            style.UseTimes++;
 
             return story;
         }
@@ -205,22 +229,44 @@ namespace InfiniteTextGame.Lib
                 .Build();
 
             StoryChapter chapter = null;
-            try
+            //重试计数并统计累计消耗的时间与token
+            var retryCount = 0;
+            long totalTime = 0;
+            var totalPromptTokens = 0;
+            var totalCompletionTokens = 0;
+            while (true)
             {
-                var result = await ExecuteFunctionCall<StoryChapter>(messages, chapterFunc);
-                chapter = result.ResultContent;
+                try
+                {
+                    var result = await ExecuteFunctionCall<StoryChapter>(messages, chapterFunc);
+                    totalTime += result.UseTime;
+                    totalPromptTokens += result.PromptTokens;
+                    totalCompletionTokens += result.CompletionTokens;
+                    if (!result.Success)
+                        throw new AIServiceException(result.Error);
 
-                //为当前章节、前一章节和Story赋值
-                chapter.Story = story;
-                chapter.CreateTime = DateTime.UtcNow;
-                chapter.UseTime = result.UseTime;
-                chapter.PromptTokens = result.PromptTokens;
-                chapter.CompletionTokens = result.CompletionTokens;
-                chapter.PreviousOptionOrder = optionOrder;
-            }
-            catch (AIServiceException ex)
-            {
-                throw new AIServiceException($"error in generate new chapter of {story.Title} after chapter {previousChapter.Title} : {ex.Message}", ex);
+                    chapter = result.ResultContent;
+                    if (!CheckChatper(chapter))
+                        throw new AIServiceException($"chapter content invalid:\n{result.Source}");
+
+                    //为当前章节、前一章节和Story赋值
+                    chapter.Story = story;
+                    chapter.CreateTime = DateTime.UtcNow;
+                    chapter.UseTime = totalTime;
+                    chapter.PromptTokens = totalPromptTokens;
+                    chapter.CompletionTokens = totalCompletionTokens;
+                    chapter.PreviousOptionOrder = optionOrder;
+
+                    break;
+                }
+                catch (AIServiceException ex)
+                {
+                    retryCount++;
+                    if (retryCount > _autoRetryMaxCount)
+                        throw new AIServiceException($"error in generate new chapter of {story.Title} after chapter {previousChapter.Title}:\n {ex.Message}", ex);
+
+                    _logger.LogWarning($"error in generate new chapter of {story.Title} after chapter {previousChapter.Title}, will retry {retryCount}:\n {ex.Message}");
+                }
             }
 
             //生成分支剧情选项
@@ -236,6 +282,42 @@ namespace InfiniteTextGame.Lib
             story.Chapters.Add(chapter);
             story.UpdateTime = DateTime.UtcNow;
             return chapter;
+        }
+
+        /// <summary>
+        /// 检查章节内容是否符合标准
+        /// </summary>
+        /// <returns></returns>
+        protected bool CheckChatper(StoryChapter chapter, bool isFirstChapter = false)
+        {
+            if (chapter == null
+                || string.IsNullOrEmpty(chapter.Title)
+                || !HasChineseChars(chapter.Title)
+                || string.IsNullOrEmpty(chapter.Content)
+                || !HasChineseChars(chapter.Content))
+                return false;
+
+            //第一章
+            if (isFirstChapter)
+            {
+                if (string.IsNullOrEmpty(chapter.StoryTitle)
+                    || !HasChineseChars(chapter.StoryTitle))
+                    return false;
+            }
+            //非第一章
+            else
+            {
+                if (string.IsNullOrEmpty(chapter.PreviousSummary)
+                    || !HasChineseChars(chapter.PreviousSummary)
+                    || chapter.PreviousSummary.Length < _previousSummaryLength / 4)
+                    return false;
+            }
+
+            if (!HasChineseChars(chapter.Content)
+                || chapter.Content.Length < _chapterLength / 2)//todo: 分析token进行内容长度检查，目前暂用字符串长度
+                return false;
+
+            return true;
         }
 
         /// <summary>
@@ -276,26 +358,63 @@ namespace InfiniteTextGame.Lib
                 .Validate()
                 .Build();
 
-            try
+            //重试计数并统计累计消耗的时间与token
+            var retryCount = 0;
+            long totalTime = 0;
+            var totalPromptTokens = 0;
+            var totalCompletionTokens = 0;
+            while (true)
             {
-                var result = await ExecuteFunctionCall<StoryChapter>(messages, optionsFunc);
-                var resultChapter = result.ResultContent;
-
-                if (resultChapter.Options == null || resultChapter.Options.Count != _optionsCount)
+                try
                 {
-                    throw new AIServiceException($"invalid options count: {resultChapter.Options?.Count}");
-                }
+                    var result = await ExecuteFunctionCall<StoryChapter>(messages, optionsFunc);
+                    totalTime += result.UseTime;
+                    totalPromptTokens += result.PromptTokens;
+                    totalCompletionTokens += result.CompletionTokens;
+                    if (!result.Success)
+                        throw new AIServiceException(result.Error);
 
-                chapter.Options = resultChapter.Options;
-                chapter.UseTime += result.UseTime;
-                chapter.PromptTokens += result.PromptTokens;
-                chapter.CompletionTokens += result.CompletionTokens;
-                return chapter;
+                    var resultOptions = result.ResultContent.Options;
+
+                    if (!CheckOptions(resultOptions))
+                        throw new AIServiceException($"options invalid:\n{result.Source}");
+
+                    chapter.Options = resultOptions;
+                    chapter.UseTime += totalTime;
+                    chapter.PromptTokens += totalPromptTokens;
+                    chapter.CompletionTokens += totalCompletionTokens;
+                    return chapter;
+                }
+                catch (AIServiceException ex)
+                {
+                    retryCount++;
+                    if (retryCount > _autoRetryMaxCount)
+                        throw new AIServiceException($"error in generate options of {chapter.StoryTitle} - {chapter.Title}:\n {ex.Message}", ex);
+
+                    _logger.LogWarning($"error in generate options of {chapter.StoryTitle} - {chapter.Title}, will retry {retryCount}:\n {ex.Message}");
+                }
             }
-            catch (AIServiceException ex)
+        }
+
+        /// <summary>
+        /// 检查选项是否符合标准
+        /// </summary>
+        /// <returns></returns>
+        protected bool CheckOptions(IList<StoryChapterOption> options)
+        {
+            if (options == null || options.Count != _optionsCount)
+                return false;
+
+            for (var i = 0; i < options.Count; i++)
             {
-                throw new AIServiceException($"error in generate options of {chapter.StoryTitle} - {chapter.Title}: {ex.Message}", ex);
+                var option = options[i];
+                if (option.Order != i + 1
+                    || string.IsNullOrEmpty(option.Name) || !HasChineseChars(option.Name)
+                    || string.IsNullOrEmpty(option.Description) || !HasChineseChars(option.Description))
+                    return false;
             }
+
+            return true;
         }
 
         /// <summary>
@@ -334,45 +453,63 @@ namespace InfiniteTextGame.Lib
                 .Validate()
                 .Build();
 
-            try
+            //重试计数并统计累计消耗的时间与token
+            var retryCount = 0;
+            long totalTime = 0;
+            var totalPromptTokens = 0;
+            var totalCompletionTokens = 0;
+            while (true)
             {
-                var result = await ExecuteFunctionCall<StoryChapter>(messages, optionsFunc);
-                var resultChapter = result.ResultContent;
-
-                if (resultChapter.Options == null || resultChapter.Options.Count != _optionsCount)
+                try
                 {
-                    throw new AIServiceException($"invalid options count: {resultChapter.Options?.Count}");
-                }
+                    var result = await ExecuteFunctionCall<StoryChapter>(messages, optionsFunc);
+                    totalTime += result.UseTime;
+                    totalPromptTokens += result.PromptTokens;
+                    totalCompletionTokens += result.CompletionTokens;
+                    if (!result.Success)
+                        throw new AIServiceException(result.Error);
 
-                //将分数赋给原始章节选项，逐个解析分数，有问题则抛出异常
-                foreach (var option in chapter.Options)
-                {
-                    var resultOption = resultChapter.Options.SingleOrDefault(o => o.Order == option.Order);
-                    if (resultOption == null)
+                    var resultOptions = result.ResultContent.Options;
+
+                    if (resultOptions == null || resultOptions.Count != _optionsCount)
                     {
-                        throw new AIServiceException($"cannot find option order {option.Order}");
+                        throw new AIServiceException($"invalid options count: {resultOptions?.Count}");
                     }
 
-                    if (!int.TryParse(resultOption.PositivityScoreStr, out int positivity)
-                        || !int.TryParse(resultOption.ImpactScoreStr, out int impart)
-                        || !int.TryParse(resultOption.ComplexityScoreStr, out int complexity))
+                    //将分数赋给原始章节选项，逐个解析分数，有问题则抛出异常
+                    foreach (var option in chapter.Options)
                     {
-                        throw new AIServiceException($"wrong score: \n{JsonSerializer.Serialize(resultOption)}");
+                        var resultOption = resultOptions.SingleOrDefault(o => o.Order == option.Order);
+                        if (resultOption == null)
+                        {
+                            throw new AIServiceException($"cannot find option order {option.Order}");
+                        }
+
+                        if (!int.TryParse(resultOption.PositivityScoreStr, out int positivity)
+                            || !int.TryParse(resultOption.ImpactScoreStr, out int impart)
+                            || !int.TryParse(resultOption.ComplexityScoreStr, out int complexity))
+                        {
+                            throw new AIServiceException($"wrong score: \n{JsonSerializer.Serialize(resultOption)}");
+                        }
+
+                        option.PositivityScore = positivity;
+                        option.ImpactScore = impart;
+                        option.ComplexityScore = complexity;
                     }
 
-                    option.PositivityScore = positivity;
-                    option.ImpactScore = impart;
-                    option.ComplexityScore = complexity;
+                    chapter.UseTime += result.UseTime;
+                    chapter.PromptTokens += result.PromptTokens;
+                    chapter.CompletionTokens += result.CompletionTokens;
+                    return chapter;
                 }
+                catch (AIServiceException ex)
+                {
+                    retryCount++;
+                    if (retryCount > _autoRetryMaxCount)
+                        throw new AIServiceException($"error in generate options score of {chapter.StoryTitle} - {chapter.Title}:\n {ex.Message}", ex);
 
-                chapter.UseTime += result.UseTime;
-                chapter.PromptTokens += result.PromptTokens;
-                chapter.CompletionTokens += result.CompletionTokens;
-                return chapter;
-            }
-            catch (AIServiceException ex)
-            {
-                throw new AIServiceException($"error in generate options score of {chapter.StoryTitle} - {chapter.Title}: {ex.Message}", ex);
+                    _logger.LogWarning($"error in generate options score of {chapter.StoryTitle} - {chapter.Title}, will retry {retryCount}:\n {ex.Message}");
+                }
             }
         }
 
@@ -393,31 +530,34 @@ namespace InfiniteTextGame.Lib
             });
             var useTime = sw.ElapsedMilliseconds;
 
+            var result = new FunctionCallResult<T>()
+            {
+                UseTime = useTime,
+                PromptTokens = completionResult.Usage.PromptTokens,
+                CompletionTokens = completionResult.Usage.CompletionTokens ?? 0,
+            };
+
             if (!completionResult.Successful)
             {
                 if (completionResult.Error == null)
                 {
-                    throw new AIServiceException($"call chatgpt unknown error");
+                    result.Error = $"call chatgpt unknown error";
+                    return result;
                 }
-                throw new AIServiceException($"call chatgpt error: {completionResult.Error.Message}");
+                result.Error = $"call chatgpt error: {completionResult.Error.Message}";
+                return result;
             }
             if (completionResult.Choices.First().Message.FunctionCall == null)
             {
-                throw new AIServiceException($"call chatgpt error: no function call result");
+                result.Error = $"call chatgpt error: no function call result";
+                return result;
             }
 
             try
             {
                 var jsonResult = EscapeSpecialChars(completionResult.Choices.First().Message.FunctionCall.Arguments);
-                T resultContent = JsonSerializer.Deserialize<T>(jsonResult, _defaultJsonSerializerOptions);
-
-                var result = new FunctionCallResult<T>()
-                {
-                    ResultContent = resultContent,
-                    UseTime = useTime,
-                    PromptTokens = completionResult.Usage.PromptTokens,
-                    CompletionTokens = completionResult.Usage.CompletionTokens ?? 0,
-                };
+                result.Source = jsonResult;
+                result.ResultContent = JsonSerializer.Deserialize<T>(jsonResult, _defaultJsonSerializerOptions);
 
                 _logger.LogDebug($"complete function call {function.Name} in {useTime}ms, {result.PromptTokens}+{result.CompletionTokens}={result.TotalTokens} tokens.");
 
@@ -425,7 +565,8 @@ namespace InfiniteTextGame.Lib
             }
             catch (Exception ex)
             {
-                throw new AIServiceException($"deserialize chatgpt return json error:\n{ex.Message}\n{completionResult.Choices.First().Message.FunctionCall.Arguments}");
+                result.Error = $"deserialize chatgpt return json error:\n{ex.Message}";
+                return result;
             }
         }
 
@@ -441,10 +582,28 @@ namespace InfiniteTextGame.Lib
         }
 
         /// <summary>
+        /// 检查字符串是否包含中文字符
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        private bool HasChineseChars(string input)
+        {
+            foreach (char c in input)
+            {
+                if (c >= 0x4e00 && c <= 0x9fa5)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 返回函数计算调用结果实体类
         /// </summary>
         protected class FunctionCallResult<T>
         {
+            public bool Success { get { return string.IsNullOrEmpty(Error); } }
+            public string? Error { get; set; }
+            public string Source { get; set; }
             public T ResultContent { get; set; }
             public int PromptTokens { get; set; }
             public int CompletionTokens { get; set; }
