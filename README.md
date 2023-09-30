@@ -2,11 +2,11 @@
 
 一个基于 AI 内容生成的文字游戏
 
-0.31 版，实现了手动和自动编写功能
+0.3.2 版，实现了手动和自动编写功能
 
 # 功能列表
 
-- 从原文段落提取写作风格，或者手动填写写作风格
+- 设计写作风格
 - 基于写作风格，按章节编写文章
 - 为每个章节提供后续剧情分支选项，只需点击既可无限延续故事
 - 内置几个不同作者性格，可以自动选择分支并连续编写
@@ -22,12 +22,49 @@
 
 ## 容器化
 
-在 InfiniteTextGame.Web 项目根目录下编译 docker 镜像文件，或者直接 docker pull [atonasting/infinite-text-game](https://hub.docker.com/r/atonasting/infinite-text-game)
+在 InfiniteTextGame.Web 项目根目录下编译 docker 镜像文件，或者直接 ```docker pull atonasting/infinite-text-game```。
 
-- 参考 docker-compose.yaml 的配置运行容器
+建议使用docker compose运行。
+
+docker-compose.yaml样例如下：
+
+#### OpenAI
+
+```
+version: '3'
+
+services:
+    infinite-text-game:
+        image: atonasting/infinite-text-game:latest
+        container_name: infinite-text-game
+        environment:
+            - Type=OpenAI 
+            - WebProxy=xxx # 代理服务器，部署在国内时使用。格式：http://ip:port 或 socks5://ip:port
+            - OpenAIApiKey=xxx # api key 
+            - DefaultModel=xxx # 默认模型名称，如gpt-3.5-turbo-16k-0613或gpt-4-0613等等，默认为gpt-3.5-turbo-0613
+        ports:
+            - '9000:80'
+```
+
+#### Azure
+```
+version: '3'
+
+services:
+    infinite-text-game:
+        image: atonasting/infinite-text-game:latest
+        container_name: infinite-text-game
+        environment:
+            - Type=Azure
+            - AzureApiKey=xxx # api key 
+            - ResourceName=xxx # 资源名称，用于生成终结点地址：https://{ResourceName}.openai.azure.com/
+            - DeploymentId=xxx # 在Azure OpenAI studio部署的模型id
+        ports:
+            - '9000:80'
+```
 
 # Todo
 
-- 优化 prompt，提升文字质量和描写细致程度
+- 优化prompt，提升文字质量和描写细致程度
 - 增加剧情选项的丰富程度
-- 增加自动重试和错误检测机制
+- 改进自动重试和错误检测机制

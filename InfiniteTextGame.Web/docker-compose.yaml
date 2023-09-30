@@ -3,7 +3,6 @@
 services:
   infinite-text-game:
     image: atonasting/infinite-text-game:latest
-    restart: always
     container_name: infinite-text-game
     environment:
         - WebProxy=xxx # set proxy, for example: http://ip:port or socks5://ip:port
