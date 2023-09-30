@@ -33,7 +33,7 @@
 
     <div class="card @(isLastChapter?"card-primary":"") card-outline mt-3" @(isLastChapter ? "id=lastChapter" : "")>
         <div class="card-header">
-            <h5 class="card-title">@chapter.Title</h5>
+            <h5 class="card-title">@(i+1). @chapter.Title</h5>
             <span class="float-right small text-muted">@StringHelper.UTCDateTimeToLocaleString(chapter.CreateTime)</span>
         </div>
         <div class="card-body">

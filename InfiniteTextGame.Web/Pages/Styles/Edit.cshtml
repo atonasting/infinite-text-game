@@ -8,21 +8,6 @@
     <div class="card-body">
         <form id="form" method="post">
             <div class="row mb-3">
-                <label class="col-sm-2 col-form-label">参考原文</label>
-                <div class="col-sm-10">
-                    <textarea class="form-control" id="source" rows="10" asp-for="Source"
-                              placeholder="在这里粘贴原文后，提取风格关键词。&#10;或者手动填写关键词"></textarea>
-                </div>
-            </div>
-            <div class="row mb-3">
-                <label class="col-sm-2"></label>
-                <div class="col-sm-10">
-                    <button class="btn btn-info" id="btnGenerateKeywords">
-                        根据原文提取关键词 <i class="fa-solid fa-angle-down"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="row mb-3">
                 <label class="col-sm-2 col-form-label">风格名称</label>
                 <div class="col-sm-10">
                     <input class="form-control" id="name" asp-for="Name" />
@@ -30,10 +15,9 @@
                 </div>
             </div>
             <div class="row mb-3">
-                <label class="col-sm-2 col-form-label">风格关键词</label>
+                <label class="col-sm-2 col-form-label">风格描述</label>
                 <div class="col-sm-10">
-                    <textarea class="form-control" id="keywords" rows="5" asp-for="KeyWords"
-                              placeholder="可以根据原文生成，或者手动填写，以逗号分隔"></textarea>
+                    <textarea class="form-control" id="keywords" rows="5" asp-for="KeyWords"></textarea>
                     <span asp-validation-for="KeyWords" class="text-danger"></span>
                 </div>
             </div>
@@ -41,39 +25,24 @@
                 <button type="submit" class="btn btn-primary float-left">保存</button>
                 @if (Model.Name != null)
                 {
-                    <button type="submit" asp-page-handler="Remove" class="btn btn-danger float-right">删除</button>
+                    <button id="removeStyle" type="button" class="btn btn-danger float-right">删除</button>
                 }
             </div>
         </form>
+        @if (Model.Name != null)
+        {
+            <form id="formRemove" method="post" asp-page-handler="Remove">
+            </form>
+        }
     </div>
 </div>
 
 @section Scripts {
     <script type="text/javascript">
         $(function () {
-            $("#btnGenerateKeywords").on("click", function () {
-                let source = $("#source").val().replace(/^\s+|\s+$/g, '');
-                if (!source) return;
-                var that = this;
-                buttonAddLoading(this);
-                $.ajax({
-                    type: "POST",
-                    url: window.location + "?handler=GenerateKeywords",
-                    data: {
-                        Source: source
-                    },
-                    headers: {
-                        "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
-                    },
-                    success: function (response) {
-                        buttonRemoveLoading(that);
-                        $("#name").val(response.name);
-                        $("#keywords").val(response.keywords);
-                    },
-                    error: function (error) {
-                        buttonRemoveLoading(that);
-                        console.error("Error occurred:", JSON.stringify(error));
-                    }
+            $("#removeStyle").on("click", function (e) {
+                showConfirmBox("确定要删除风格【@Html.Raw(Model.Name)】吗？", function () {
+                    $("#formRemove").submit();
                 });
             });
         });

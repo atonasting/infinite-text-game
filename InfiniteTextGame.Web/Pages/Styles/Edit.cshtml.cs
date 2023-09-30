@@ -21,7 +21,7 @@ namespace InfiniteTextGame.Web.Pages.Styles
         public string Name { get; set; }
 
         [BindProperty]
-        [Required(ErrorMessage = "关键词不能为空")]
+        [Required(ErrorMessage = "描述不能为空")]
         public string KeyWords { get; set; }
 
         public EditModel(ILogger<EditModel> logger,
@@ -78,24 +78,6 @@ namespace InfiniteTextGame.Web.Pages.Styles
             _logger.LogInformation($"save writing style {style.Name}, keywords:\n{style.KeyWords}");
 
             return RedirectToPage("Index");
-        }
-
-        /// <summary>
-        /// 根据原文生成风格名称和关键词
-        /// </summary>
-        /// <param name="Source"></param>
-        /// <returns></returns>
-        public async Task<IActionResult> OnPostGenerateKeywordsAsync(string Source)
-        {
-            if (Source == null) { return BadRequest("no source"); }
-            var style = await _aiService.GenerateWritingStyle(Source);
-            _logger.LogInformation($"generate writing style from source ({Source.Length} characters) to:\nname: {style.Name}\nkeywords:{style.KeyWords}");
-
-            return new JsonResult(new Dictionary<string, string>()
-            {
-                { "name", style.Name },
-                { "keywords", style.KeyWords },
-            });
         }
 
         /// <summary>

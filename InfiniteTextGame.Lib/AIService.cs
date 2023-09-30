@@ -82,40 +82,6 @@ namespace InfiniteTextGame.Lib
         }
 
         /// <summary>
-        /// 基于原始文章总结关键词
-        /// </summary>
-        public async Task<WritingStyle> GenerateWritingStyle(string Source)
-        {
-            var messages = new List<ChatMessage> {
-                ChatMessage.FromSystem("你是一位经验丰富的文学编辑。你会阅读大段的文学作品并用精炼的语言准确总结出这些作品的特征，将这些特征整理成5到15个关键词，每个关键词不多于20个汉字。这些关键词被提供给其他人工智能模型，能够尽可能准确地还原出作者的文字风格。接下来会为你提供一些作品片段。"),
-                ChatMessage.FromUser(Source)
-            };
-
-            var writingStyleFunc = new FunctionDefinitionBuilder("writingStyle")
-                .AddParameter("Name", PropertyDefinition.DefineString("用10个以内的汉字总结文字风格"))
-                .AddParameter("KeyWordList", PropertyDefinition.DefineArray(
-                    PropertyDefinition.DefineString("从作品片段中总结出的文字风格关键字。关键字可以是名词、形容词+名词、动词+名词的格式；每个关键字不多于20个汉字；不要包含标点符号；不涉及剧情中的人物")))
-                .Validate()
-                .Build();
-
-            //计算token数量以区别使用模型（暂不使用）
-            var fullSourceText = string.Join("\n\n", Source);
-            var tokenCount = OpenAI.Tokenizer.GPT3.TokenizerGpt3.TokenCount(fullSourceText, true);
-
-            try
-            {
-                var result = await ExecuteFunctionCall<WritingStyle>(messages, writingStyleFunc);
-                var style = result.ResultContent;
-                style.KeyWords = string.Join(',', style.KeyWordList);
-                return style;
-            }
-            catch (AIServiceException ex)
-            {
-                throw new AIServiceException($"error in generate writing style: {ex.Message}", ex);
-            }
-        }
-
-        /// <summary>
         /// 生成故事以及第一章
         /// </summary>
         /// <returns></returns>
