@@ -8,6 +8,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 		<DockerfileTag>atonasting/infinite-text-game</DockerfileTag>
+		<Version>$(VersionPrefix)</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
