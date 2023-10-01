@@ -29,7 +29,12 @@
                     }
                 </ul>
                 <div class="clearfix p-2">
-                    <a asp-page="/Stories/Index" class="float-right">查看全部</a>
+                    <a asp-page="/Stories/Index" class="btn btn-outline-primary float-left">
+                        <i class="fa-solid fa-list"></i> 查看全部
+                    </a>
+                    <a asp-page="/Stories/New" class="btn btn-outline-primary float-right">
+                        <i class="fa-solid fa-plus"></i> 新的故事
+                    </a>
                 </div>
             </div>
         </div>
@@ -46,7 +51,7 @@
                         <li class="list-group-item">
                             <div class="clearfix">
                                 <span class="fw-bold float-left">
-                                    <a asp-page="/Styles/Edit" asp-route-Id="@style.Id">@style.Name</a>
+                                    <a asp-page="/Styles/Edit" class="text-info" asp-route-Id="@style.Id">@style.Name</a>
                                 </span>
                                 <span class="text-muted small float-right">
                                     已写作 @style.UseTimes 次
@@ -62,7 +67,9 @@
                     }
                 </ul>
                 <div class="clearfix p-2">
-                    <a asp-page="/Styles/Index" class="float-right">查看全部</a>
+                    <a asp-page="/Styles/Index" class="btn btn-outline-info float-left">
+                        <i class="fa-solid fa-list-ul"></i> 查看全部
+                    </a>
                 </div>
             </div>
         </div>

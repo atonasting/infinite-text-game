@@ -15,7 +15,9 @@
                 <span class="badge badge-secondary rounded-pill">@Model.Story.Model</span>
                 <span class="float-right">
                     <form asp-page-handler="RemoveStory" id="formRemoveStory">
-                        <button class="btn btn-danger btn-xs">删除故事</button>
+                        <button class="btn btn-danger btn-xs">
+                            <i class="fa-solid fa-trash-can"></i> 删除故事
+                        </button>
                     </form>
                 </span>
             </div>
@@ -33,7 +35,7 @@
 
     <div class="card @(isLastChapter?"card-primary":"") card-outline mt-3" @(isLastChapter ? "id=lastChapter" : "")>
         <div class="card-header">
-            <h5 class="card-title">@(i+1). @chapter.Title</h5>
+            <h5 class="card-title">@(i + 1). @chapter.Title</h5>
             <span class="float-right small text-muted">@StringHelper.UTCDateTimeToLocaleString(chapter.CreateTime)</span>
         </div>
         <div class="card-body">
@@ -141,12 +143,7 @@
 @* 添加一个form，用于生成__RequestVerificationToken *@
 <form method="post"></form>
 
-@section CSS {
-    <link rel="stylesheet" href="~/lib/toastr/toastr.min.css">
-}
-
 @section Scripts {
-    <script src="~/lib/toastr/toastr.min.js"></script>
     <script type="text/javascript">
         $(function () {
             $(".btn-option").on("click", function (e) {
@@ -191,16 +188,16 @@
                 var scrollOffset = $("#lastChapter").offset().top - 10;
                 $("html, body").scrollTop(scrollOffset);
 
-                @if (isAutoWrite)
-                {
-                    <text>
+        @if (isAutoWrite)
+        {
+            <text>
                         //自动写作模式下此时开始写作
                         let specific = @((int)Model.AutoWriterSpecific);
-                        let count = @Model.RemainAutoWriteCount;
-                        AutoWrite(specific, count);
-                    </text>
-                }
-            }, 50);
+                    let count = @Model.RemainAutoWriteCount;
+                    AutoWrite(specific, count);
+            </text>
+        }
+                    }, 50);
 
             //自动写作
             $(".btn-autowrite").on("click", function (e) {

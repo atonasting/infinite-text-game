@@ -4,7 +4,7 @@
     ViewData["Title"] = Model.Name == null ? "新建写作风格" : $"修改写作风格: {Model.Name}";
 }
 
-<div class="card card-primary card-outline">
+<div class="card card-info card-outline">
     <div class="card-body">
         <form id="form" method="post">
             <div class="row mb-3">
@@ -22,10 +22,14 @@
                 </div>
             </div>
             <div class="clearfix">
-                <button type="submit" class="btn btn-primary float-left">保存</button>
+                <button type="submit" class="btn btn-info float-left">
+                    <i class="fa-solid fa-paper-plane"></i> 保存
+                </button>
                 @if (Model.Name != null)
                 {
-                    <button id="removeStyle" type="button" class="btn btn-danger float-right">删除</button>
+                    <button id="removeStyle" type="button" class="btn btn-danger float-right">
+                        <i class="fa-solid fa-trash-can"></i> 删除
+                    </button>
                 }
             </div>
         </form>

@@ -6,7 +6,9 @@
 }
 
 <div class="clearfix mb-3">
-    <a class="btn btn-outline-primary float-end" href="/Styles/Edit">新建写作风格</a>
+    <a asp-page="/Styles/Edit" class="btn btn-outline-info float-right">
+        <i class="fa-solid fa-plus"></i> 新建写作风格
+    </a>
 </div>
 
 <ol class="list-group list-group-numbered">
@@ -15,7 +17,7 @@
         <li class="list-group-item">
             <div class="clearfix">
                 <span class="fw-bold float-left">
-                    <a asp-page="/Styles/Edit" asp-route-Id="@style.Id">@style.Name</a>
+                    <a asp-page="/Styles/Edit" class="text-info" asp-route-Id="@style.Id">@style.Name</a>
                 </span>
                 <span class="text-muted small float-right">
                     已写作 @style.UseTimes 次
