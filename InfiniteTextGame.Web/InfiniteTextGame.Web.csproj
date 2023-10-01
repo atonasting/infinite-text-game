@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
 		<Version>$(VersionPrefix)</Version>
-		<VersionPrefix>0.3.2</VersionPrefix>
+		<VersionPrefix>0.3.3</VersionPrefix>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
